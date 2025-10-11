@@ -1,6 +1,6 @@
 tic
 %% input
-addpath('src')
+addpath('src');
 %read in file
 fid         = fopen('debug.in','r');
 formatSpec  = '%s %s %s\n';
@@ -18,17 +18,17 @@ V_SW        = VSW .* [cos(del); 0.0; sin(del)]; %solar wind speed, cm/s
 B0          = B_0 .* [cos(th); 0.0; sin(th)]; %magnetic field in Tesla B(r) = B0/R[AU]
 
 %% constants
-global c e Z A q m
-c = 3E10; %speed of light, m/s
-e = 4.8E-10; %elementary charge, cgs
-Z = 1; %atomic number
-A = 1; %mass number
-q = 1*e; %ion charge 
-m = A * 1.67E-24; %g
+% global c e Z A q m
+K.c = 3E10; %speed of light, m/s
+K.e = 4.8E-10; %elementary charge, cgs
+K.Z = 1; %atomic number
+K.A = 1; %mass number
+K.q = 1*K.e; %ion charge 
+K.m = K.A * 1.67E-24; %g
 
 U1 = vecnorm(V_SW,2,1);
 B1 = vecnorm(B0,2,1);
-Om = q*B1 ./ (m*c);
+Om = K.q*B1 ./ (K.m*K.c);
 Rg = U1 ./ Om;
 num_steps = cycles*(1/Om)*20+1; %number of steps 
 
@@ -55,36 +55,41 @@ Vmag(:,1) = vecnorm(V(:,:,1),2,2);
 dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
 n = 1; t = 0.0;
 Split = {};
-for ii = 1:sample_size
-    [B,U] = S.shock_field(B0, V_SW, x0, X(ii,:,1), An, kk, P, th, del);
+[B,U] = S.shock_field_vec(B0, V_SW, x0, X(:,:,1), An, kk, P, th, del);
 
-    %while t < cycles*(1/Om)
-    for n = 1:num_steps-1
-        %integrate
-        [X(ii,:,n+1),V(ii,:,n+1)] = integrate_boris(X(ii,:,n),V(ii,:,n),U,B,dt);
-        %advance field
-        [B,U] = S.shock_field(B0,V_SW,x0,X(ii,:,n+1),An,kk, P, th, del);
-        Vmag(:,n+1) = sqrt( V(:,1,n+1).^2 + V(:,2,n+1).^2 + V(:,3,n+1).^2 );
-        %cutoff = logspace(1,4,10);
-        cutoff = [2,5,logspace(1,2,8)];
-        [Split] = particle_split(X,V,Vmag,cutoff,Split);
-        [Split] = particle_displace(Split,Rg);
-        for jj = 1:length(Split)
-            if isempty(Split{jj})
-                [X_split,V_split] = integrate_boris(Split{jj}{1},Split{jj}{2},U,B,dt);
-                Split{jj}{1} = X_split; Split{jj}{2} = V_split;
-            else
-                continue
-            end
+%while t < cycles*(1/Om)
+for n = 1:num_steps-1
+    %integrate
+    Xold = X(:,:,n);
+    Vold = V(:,:,n);
+    [Xnew,Vnew] = integrate_boris(Xold,Vold,U,B,dt,K);
+    %advance field
+    [B,U] = S.shock_field(B0,V_SW,x0,Xnew,An,kk, P, th, del);
+    Vmag = sqrt( Vnew(:,1).^2 + Vnew(:,2).^2 + Vnew(:,3).^2 );
+    X(:,:,n+1) = Xnew;
+    V(:,:,n+1) = Vnew;
+    %cutoff = logspace(1,4,10);
+    cutoff = [2,5,logspace(1,2,8)];
+    [Split] = particle_split(X,V,Vmag,cutoff,Split,K);
+    [Split] = particle_displace(Split,Rg);
+    for jj = 1:length(Split)
+        if isempty(Split{jj})
+            [X_split,V_split] = integrate_boris(Split{jj}{1},Split{jj}{2},U,B,dt,K);
+            Split{jj}{1} = X_split; Split{jj}{2} = V_split;
+        else
+            continue
         end
-        t = t + dt;
     end
+    t = t + dt;
 end
 toc
 %%
 
-function [X,V] = integrate_boris(Xn,Vn,U,B,dt)
-    global q m c
+function [X,V] = integrate_boris(Xn,Vn,U,B,dt,K)
+    q = K.q;
+    m = K.m;
+    c = K.c;
+
     E(:,1) = (-1/c) .* (U(:,2).*B(:,3) - U(:,3).*B(:,2));
     E(:,2) = (-1/c) .* (U(:,3).*B(:,1) - U(:,1).*B(:,3));
     E(:,3) = (-1/c) .* (U(:,1).*B(:,2) - U(:,2).*B(:,1));
@@ -112,8 +117,8 @@ function [X,V] = integrate_boris(Xn,Vn,U,B,dt)
     X(:,3) = Xn(:,3) + V(:,3) .* dt;
 end
 
-function [split] = particle_split(X,V,Vmag,cutoff,split)
-    global m
+function [split] = particle_split(X,V,Vmag,cutoff,split,K)
+    m = K.m;
     En = (0.5*m).*(Vmag(:,end).^2);
     E0 = (0.5*m).*(Vmag(:,1).^2);
     ratio = En ./ E0;

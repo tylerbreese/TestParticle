@@ -1,5 +1,5 @@
 run_name = debug
-sample_size = 10
+sample_size = 1000
 Cycles = 100
 Th = 1.5708
 Del = 0.0

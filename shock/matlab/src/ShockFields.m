@@ -22,7 +22,37 @@ classdef ShockFields
             end
         end
         
-        %function [B,U] = shock_field(obj,B0,U0,x0,X,An,kk)
+        function [B,U] = shock_field_vec(obj, B0, U0, x0, X, An, kk, P, th, del)
+            % for the nth time cycle update B based on location
+            %if upstream of shock B0
+            %if downstream of shock r*B0
+            %shock taken in xz plane with downstream being the positive direction
+            [sample_size,~] = size(X);
+            [r,a,b] = P.init_shock(U0, th, del);
+            %obj.N = size(kk,2); 
+            [dB,~] = obj.sum_turby(X,obj.N,kk,An);
+            track = double(X(:,1) > x0(1,1));
+
+            U = ones(sample_size,3);
+
+            U(track==0,1) = U0(1);
+            U(track==0,2) = U0(2);
+            U(track==0,3) = U0(3);
+            U(track~=0,1) = U0(1)./r;
+            U(track~=0,2) = U0(2) + b .* U0(1);
+            U(track~=0,3) = U0(3) + b .* U0(1);
+
+            B = ones(sample_size,3);
+            %dB = zeros(size(B)); % turby off
+            B(track==0,1) = B0(1) + dB(track==0,1);
+            B(track==0,2) = B0(2) + dB(track==0,2);
+            B(track==0,3) = B0(3) + dB(track==0,3);
+            B(track~=0,1) = B0(1) + dB(track~=0,1);
+            B(track~=0,2) = a .* ( B0(2) + dB(track~=0,2) );
+            B(track~=0,3) = a .* ( B0(3) + dB(track~=0,3) );
+
+        end
+
         function [B,U] = shock_field(obj, B0, U0, x0, X, An, kk, P, th, del)
 
             % for the nth time cycle update B based on location
@@ -117,8 +147,7 @@ classdef ShockFields
                 turby.Any = Any; turby.Bny = Bny;
                 turby.Anz = Anz;
             end
-
-            arg = (turby.kx .* X(1) + turby.ky .* X(2) + turby.kz .* X(3) + turby.beta');
+            arg = (turby.kx .* X(:,1) + turby.ky .* X(:,2) + turby.kz .* X(:,3) + turby.beta');
             % sum
             dBn(:,:,1) = turby.Anx .* cos(arg) + turby.Bnx .* sin(arg);
             dBn(:,:,2) = turby.Any .* cos(arg) + turby.Bny .* sin(arg);
