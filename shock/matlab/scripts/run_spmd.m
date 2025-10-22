@@ -30,7 +30,6 @@ U1 = vecnorm(V_SW,2,1);
 B1 = vecnorm(B0,2,1);
 Om = K.q*B1 ./ (K.m*K.c);
 Rg = U1 ./ Om;
-num_steps = cycles*(1/Om)*20+1; %number of steps 
 
 %% initialize 
 N = 200; %number of wave modes
@@ -40,9 +39,12 @@ P = InitParticles(V_SW, th, del, sample_size);
 s = sqrt(0.5) .* B_0;
 [An, kk] = S.init_turby(V_SW, Om, s, N);
 
-X = zeros(sample_size,3,num_steps);
-V = zeros(sample_size,3,num_steps);
-Vmag = zeros(sample_size,num_steps);
+dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
+num_steps = ( cycles*(1/Om)/dt ) + 1; %number of steps
+
+X = zeros(sample_size,3,3);
+V = zeros(sample_size,3,3);
+Vmag = zeros(sample_size,3);
 
 x0 = -20.*Rg .* ones(sample_size,1);
 y0 = randi([-500,500],sample_size,1).*Rg;
@@ -50,19 +52,24 @@ z0 = randi([-500,500],sample_size,1).*Rg;
 
 X(:,:,1) = [x0,y0,z0]; % start slighlt upstream of shock boundary
 V(:, :, 1) = P.sampling(sample_size, V_SW);
-Vmag(:,1) = vecnorm(V(:,:,1),2,2);
-%% integration
-dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
-t = 0.0;
+
 Split = {};
+Vmag(:,1) = vecnorm(V(:,:,1),2,2);
+
+X(:,:,3) = X(:,:,1);
+V(:,:,3) = V(:,:,1);
+%% integration
+% dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
+% num_steps = ( cycles*(1/Om)/dt ) + 1; %number of steps
+t = 0.0;
 % Make sure parpool is ready
 pool = gcp('nocreate');
 if isempty(pool)
-    pool = parpool("Processes",4);
+    pool = parpool("Processes",6);
 end
 
 numParticles = sample_size;
-numWorkers = 4;  % or use numlabs inside spmd
+numWorkers = 6;  % or use numlabs inside spmd
 chunk = ceil(numParticles / numWorkers);
 %%
 tic
@@ -84,14 +91,17 @@ spmd(pool)
     [B,U] = S.shock_field_vec(B0, V_SW, x0, X_local(:,:,1), An, kk, P, th, del);
     % Local integration loop
     for n = 1:num_steps-1
-        Xold = X_local(:,:,n);
-        Vold = V_local(:,:,n);
+        Xold = X_local(:,:,1);
+        Vold = V_local(:,:,1);
 
         [Xnew,Vnew] = integrate_boris(Xold,Vold,U,B,dt,K);
         [B,U] = S.shock_field_vec(B0,V_SW,x0,Xnew,An,kk,P,th,del);
 
-        X_local(:,:,n+1) = Xnew;
-        V_local(:,:,n+1) = Vnew;
+        X_local(:,:,2) = Xnew;
+        V_local(:,:,2) = Vnew;
+        % Store results for the next time step
+        X_local(:,:,1) = Xnew;
+        V_local(:,:,1) = Vnew;
     end
 end
 

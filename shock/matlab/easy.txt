@@ -1,0 +1,6 @@
+chmod +x batch.sh
+./batch.sh input1.in &
+./batch.sh input2.in &
+./batch.sh input3.in &
+./batch.sh input4.in &
+wait

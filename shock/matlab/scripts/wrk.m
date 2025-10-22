@@ -1,23 +1,33 @@
+clear K
+    K.c = 3E10; %speed of light, m/s
+    K.e = 4.8E-10; %elementary charge, cgs
+    K.Z = 1; %atomic number
+    K.A = 1; %mass number
+    K.q = 1*K.e; %ion charge
+    K.m = K.A * 1.67E-24; %g
+    %%
 pick = randi(sample_size);
 
-x = squeeze(X(pick,1,:))./Rg;
-y = squeeze(X(pick,2,:))./Rg;
-z = squeeze(X(pick,3,:))./Rg;
+x = squeeze(X(:,1,:))./Rg;
+y = squeeze(X(:,2,:))./Rg;
+z = squeeze(X(:,3,:))./Rg;
 
-vx   = squeeze(V(pick,1,:));
-vy   = squeeze(V(pick,2,:));
-vz   = squeeze(V(pick,3,:));
+vx   = squeeze(V(:,1,:))./U1;
+vy   = squeeze(V(:,2,:))./U1;
+vz   = squeeze(V(:,3,:))./U1;
 vmag = sqrt(vx.^2 + vy.^2 + vz.^2);
 
-En = (0.5 * K.m) .* vmag.^2;
+En = (0.5 * K.m) .* (U1.*vmag).^2;
 En = En ./ 1.6e-6; %in MeV
 
 figure()
-plot3(x,y,z)
+plot3(x(pick,:),y(pick,:),z(pick,:))
+
 figure()
-plot(x,vmag);
+plot(x(pick,:),vmag(pick,:));
+
 figure()
-histogram(En(:,end))
+histogram(En(:,2))
 %%
 tic
 % --- constants ---

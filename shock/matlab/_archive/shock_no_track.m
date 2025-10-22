@@ -61,6 +61,7 @@ N = 400; s = sqrt(0.5) .* vecnorm(B0,2,1); %variance s^2 / B^2 = number < 1
 Vmag(:,1) = vecnorm(V0,2,1);
 
 %% integration
+tic 
 dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
 n = 1; t = 0.0;
 Split = {};
@@ -88,6 +89,7 @@ while t < cycles*(1/Om)
     V(:,:,1) = V(:,:,2);
 
 end
+toc
 %% sim end save data
 qqx = [];
 for ii = 1:length(Split)
@@ -102,7 +104,7 @@ for ii = 1:length(Split)
     qqf = cat(1,qqf,Split{ii}{3});
 end
 
-h5out = join(['output_AGU','/',run_name],'');
+h5out = join([run_name],'');
 h5create(h5out,'/position',size(X));
 h5write(h5out,'/position',X);
 h5create(h5out,'/velocity',size(V));
