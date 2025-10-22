@@ -1,4 +1,5 @@
 chmod +x batch.sh
+chmod +x batch_para.sh
 ./batch.sh input1.in &
 ./batch.sh input2.in &
 ./batch.sh input3.in &
