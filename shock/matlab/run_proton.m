@@ -62,7 +62,7 @@ V(:, :, 1) = P.sampling(sample_size, V_SW);
 Vmag(:,1) = vecnorm(V(:,:,1),2,2);
 
 X(:,:,3)  = X(:,:,1); %store starting point
-V(:,:,3)  = X(:,:,1);
+V(:,:,3)  = V(:,:,1);
 Vmag(:,3) = Vmag(:,1);
 %% integration
 dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
@@ -127,8 +127,8 @@ h5create(h5out,'/split_x',size(qqx));
 h5write(h5out,'/split_x',qqx);
 h5create(h5out,'/split_p',size(qqp));
 h5write(h5out,'/split_p',qqp);
-h5create(h5out,'/split_flag',size(qqp));
-h5write(h5out,'/split_p',qqp);
+h5create(h5out,'/split_flag',size(qqf));
+h5write(h5out,'/split_p',qqf);
 %%
 
 function [X,V] = integrate_boris(Xn,Vn,U,B,dt,K)

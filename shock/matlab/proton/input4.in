@@ -1,6 +1,6 @@
 run_name = four
 sample_size = 1000
-Cycles = 100
+Cycles = 10000
 Th = 1.5708
 Del = 0.0
 U1 = 400e5

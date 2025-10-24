@@ -1,0 +1,51 @@
+
+folder = 'proton';
+files = dir(fullfile(folder,'*h5'));
+files = {files.name};
+for ii = 1:length(files)
+    h5files = fullfile(folder,files{ii});
+    %h5disp(h5files);
+
+    particleData = h5read(h5files,'/particle');
+    m = particleData(1);
+    q = particleData(2);
+    Z = particleData(3);
+    A = particleData(4);
+    X = h5read(h5files,'/position');
+    V = h5read(h5files,'/velocity');
+    mask = X(:,1,2) > 0; % what is upstream of the shock?
+    Vmag = vecnorm(V, 2, 2);
+    Vup = squeeze(Vmag(mask,:,:));
+    Vdo = squeeze(Vmag(~mask,:,:));
+    Split_V = h5read(h5files,'/split_p');
+    Split_Vmag = vecnorm(Split_V,2,2);
+    % Calculate energy for upstream and downstream particles
+    En_up{ii} = 0.5 * m * Vup.^2 ./ 1.6e-6;
+    En_do{ii} = 0.5 * m * Vdo.^2 ./ 1.6e-6;
+    En_final{ii} = 0.5 * m * ([Vup(:,2); Split_Vmag]).^2 ./ 1.6e-6;
+end
+
+U1 = 400e5;
+B1 = 0.05e-5;
+bins = logspace(-4,3,100);
+
+En_up_tot = [];
+En_do_tot = [];
+En_total = [];
+for jj = 1:10
+    En_up_tot = cat(1,En_up_tot,En_up{jj});
+    En_do_tot = cat(1,En_do_tot,En_do{jj});
+    En_total  = cat(1,En_total,En_final{jj});
+end
+%%
+n0 = histcounts(En_up_tot(:,3),bins);
+nf = histcounts(En_total,bins);
+n0(end+1) = 0.0; nf(end+1) = 0.0;
+figure()
+hold on
+grid on
+xline(((0.5.*m.*(2*U1).^2)./1.6e-6),'LineWidth',2)
+plot(bins,nf./sum(nf),'LineWidth',2)
+ax = gca;
+ax.XScale = 'log';
+ax.YScale = 'log';
