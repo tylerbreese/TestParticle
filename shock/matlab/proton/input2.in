@@ -1,5 +1,5 @@
 run_name = two
-sample_size = 10000
+sample_size = 100000
 Cycles = 1000
 Th = 1.5708
 Del = 0.0

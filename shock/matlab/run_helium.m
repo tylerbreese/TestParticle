@@ -49,6 +49,12 @@ P = InitParticles(V_SW, th, del, sample_size);
 s = sqrt(var) .* B_0;
 [An, kk] = S.init_turby(V_SW, Om, s, N);
 
+%% integration
+dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
+num_steps = ( cycles*(1/Om)/dt ) + 1; %number of steps
+
+% X = zeros(sample_size,3,num_steps);
+% V = zeros(sample_size,3,num_steps);
 X = zeros(sample_size,3,3);
 V = zeros(sample_size,3,3);
 Vmag = zeros(sample_size,3);
@@ -60,13 +66,12 @@ z0 = randi([-500,500],sample_size,1).*Rg;
 X(:,:,1) = [x0,y0,z0]; % start slighlt upstream of shock boundary
 V(:, :, 1) = P.sampling(sample_size, V_SW);
 Vmag(:,1) = vecnorm(V(:,:,1),2,2);
-
-X(:,:,3)  = X(:,:,1); %store starting point
-V(:,:,3)  = V(:,:,1);
 Vmag(:,3) = Vmag(:,1);
+X(:,:,3) = X(:,:,1);
+V(:,:,3) = V(:,:,1);
+
 %% integration
-dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
-num_steps = ( cycles*(1/Om)/dt ) + 1; %number of steps
+tic 
 t = 0.0;
 Split = {};
 [B,U] = S.shock_field_vec(B0, V_SW, 0.0, X(:,:,1), An, kk, P, th, del);
@@ -74,18 +79,21 @@ Split = {};
 %while t < cycles*(1/Om)
 for n = 1:num_steps-1
     %integrate
+    % Xold = X(:,:,n);
+    % Vold = V(:,:,n);
     Xold = X(:,:,1);
     Vold = V(:,:,1);
+    
     [Xnew,Vnew] = integrate_boris(Xold,Vold,U,B,dt,K);
     %advance field
     [B,U] = S.shock_field_vec(B0,V_SW,0.0,Xnew,An,kk, P, th, del);
     Vmag(:,2) = sqrt( Vnew(:,1).^2 + Vnew(:,2).^2 + Vnew(:,3).^2 );
+    % X(:,:,n+1) = Xnew;
+    % V(:,:,n+1) = Vnew;
     X(:,:,2) = Xnew;
     V(:,:,2) = Vnew;
-    %swap for next step
-    X(:,:,1) = X(:,:,2); 
-    V(:,:,1) = V(:,:,2); 
-    %cutoff = logspace(1,4,10);
+    X(:,:,1) = X(:,:,2);
+    V(:,:,1) = V(:,:,2);
     cutoff = [2,5,logspace(1,2,8)];
     [Split] = particle_split(X,V,Vmag,cutoff,Split,K);
     [Split] = particle_displace(Split,Rg);
