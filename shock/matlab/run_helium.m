@@ -69,7 +69,7 @@ dt = 0.05 * (1/Om); %might need smaller timestep for shock frame
 num_steps = ( cycles*(1/Om)/dt ) + 1; %number of steps
 t = 0.0;
 Split = {};
-[B,U] = S.shock_field_vec(B0, V_SW, x0, X(:,:,1), An, kk, P, th, del);
+[B,U] = S.shock_field_vec(B0, V_SW, 0.0, X(:,:,1), An, kk, P, th, del);
 
 %while t < cycles*(1/Om)
 for n = 1:num_steps-1
@@ -78,7 +78,7 @@ for n = 1:num_steps-1
     Vold = V(:,:,1);
     [Xnew,Vnew] = integrate_boris(Xold,Vold,U,B,dt,K);
     %advance field
-    [B,U] = S.shock_field(B0,V_SW,x0,Xnew,An,kk, P, th, del);
+    [B,U] = S.shock_field_vec(B0,V_SW,0.0,Xnew,An,kk, P, th, del);
     Vmag(:,2) = sqrt( Vnew(:,1).^2 + Vnew(:,2).^2 + Vnew(:,3).^2 );
     X(:,:,2) = Xnew;
     V(:,:,2) = Vnew;
@@ -128,7 +128,7 @@ h5write(h5out,'/split_x',qqx);
 h5create(h5out,'/split_p',size(qqp));
 h5write(h5out,'/split_p',qqp);
 h5create(h5out,'/split_flag',size(qqf));
-h5write(h5out,'/split_p',qqf);
+h5write(h5out,'/split_flag',qqf);
 %%
 
 function [X,V] = integrate_boris(Xn,Vn,U,B,dt,K)

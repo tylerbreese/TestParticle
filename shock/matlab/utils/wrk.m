@@ -22,12 +22,12 @@ En = En ./ 1.6e-6; %in MeV
 
 figure()
 plot3(x(pick,:),y(pick,:),z(pick,:))
-
-figure()
-plot(x(pick,:),vmag(pick,:));
-
-figure()
-histogram(En(:,2))
+% 
+% figure()
+% plot(x(pick,:),vmag(pick,:));
+% 
+% figure()
+% histogram(En(:,2))
 %%
 tic
 % --- constants ---

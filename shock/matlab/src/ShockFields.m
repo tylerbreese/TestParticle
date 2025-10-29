@@ -39,7 +39,7 @@ classdef ShockFields
             U(track==0,2) = U0(2);
             U(track==0,3) = U0(3);
             U(track~=0,1) = U0(1)./r;
-            U(track~=0,2) = U0(2) + b .* U0(1);
+            U(track~=0,2) = U0(2);% + b .* U0(1);
             U(track~=0,3) = U0(3) + b .* U0(1);
 
             B = ones(sample_size,3);
@@ -48,7 +48,7 @@ classdef ShockFields
             B(track==0,2) = B0(2) + dB(track==0,2);
             B(track==0,3) = B0(3) + dB(track==0,3);
             B(track~=0,1) = B0(1) + dB(track~=0,1);
-            B(track~=0,2) = a .* ( B0(2) + dB(track~=0,2) );
+            B(track~=0,2) = ( B0(2) + dB(track~=0,2) );
             B(track~=0,3) = a .* ( B0(3) + dB(track~=0,3) );
 
         end

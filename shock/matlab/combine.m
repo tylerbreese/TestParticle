@@ -13,10 +13,12 @@ for ii = 1:length(files)
     A = particleData(4);
     X = h5read(h5files,'/position');
     V = h5read(h5files,'/velocity');
-    mask = X(:,1,2) > 0; % what is upstream of the shock?
+    mask = X(:,1,2) < 0; % what is upstream of the shock?
     Vmag = vecnorm(V, 2, 2);
-    Vup = squeeze(Vmag(mask,:,:));
-    Vdo = squeeze(Vmag(~mask,:,:));
+    %Vup = squeeze(Vmag(mask,:,:));
+    %Vdo = squeeze(Vmag(~mask,:,:));
+    Vup = squeeze(Vmag(:,:,:));
+    Vdo = squeeze(Vmag(:,:,:));
     Split_V = h5read(h5files,'/split_p');
     Split_Vmag = vecnorm(Split_V,2,2);
     % Calculate energy for upstream and downstream particles
@@ -45,7 +47,9 @@ figure()
 hold on
 grid on
 xline(((0.5.*m.*(2*U1).^2)./1.6e-6),'LineWidth',2)
+plot(bins,n0./sum(n0),'LineWidth',2)
 plot(bins,nf./sum(nf),'LineWidth',2)
 ax = gca;
 ax.XScale = 'log';
 ax.YScale = 'log';
+saveas(gcf,'energy.png');
