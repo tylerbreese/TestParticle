@@ -13,43 +13,95 @@ for ii = 1:length(files)
     A = particleData(4);
     X = h5read(h5files,'/position');
     V = h5read(h5files,'/velocity');
-    mask = X(:,1,2) < 0; % what is upstream of the shock?
+    mask = X(:,1,2) > 0; % what is upstream of the shock?
     Vmag = vecnorm(V, 2, 2);
-    %Vup = squeeze(Vmag(mask,:,:));
-    %Vdo = squeeze(Vmag(~mask,:,:));
-    Vup = squeeze(Vmag(:,:,:));
-    Vdo = squeeze(Vmag(:,:,:));
+    Vup = squeeze(Vmag(mask,:,:));
+    Vdo = squeeze(Vmag(~mask,:,:));
+    
+    Split_X = h5read(h5files,'/split_x');
+    split_mask = Split_X(:,1) > 0;
     Split_V = h5read(h5files,'/split_p');
     Split_Vmag = vecnorm(Split_V,2,2);
     % Calculate energy for upstream and downstream particles
     En_up{ii} = 0.5 * m * Vup.^2 ./ 1.6e-6;
     En_do{ii} = 0.5 * m * Vdo.^2 ./ 1.6e-6;
-    En_final{ii} = 0.5 * m * ([Vup(:,2); Split_Vmag]).^2 ./ 1.6e-6;
+    En_final{ii} = 0.5 * m * ([squeeze(Vmag(:,1,2)); Split_Vmag]).^2 ./ 1.6e-6;
+    En_split{ii} = 0.5 * m * (Split_Vmag(split_mask)).^2 ./ 1.6e-6;
 end
 
 U1 = 400e5;
 B1 = 0.05e-5;
 bins = logspace(-4,3,100);
-
 En_up_tot = [];
 En_do_tot = [];
 En_total = [];
+En_split_tot = [];
 for jj = 1:10
-    En_up_tot = cat(1,En_up_tot,En_up{jj});
-    En_do_tot = cat(1,En_do_tot,En_do{jj});
-    En_total  = cat(1,En_total,En_final{jj});
+    En_up_tot     = cat(1,En_up_tot,En_up{jj});
+    En_do_tot     = cat(1,En_do_tot,En_do{jj});
+    En_total      = cat(1,En_total,En_final{jj});
+    En_split_tot  = cat(1,En_split_tot,En_split{jj});
 end
 %%
+
+cutoff = [2,5,logspace(1,2,8)];
+En_cut = ((0.5 .* m .* ( U1).^2) ./ 1.6e-6) .* cutoff;
+
+% Preallocate arrays
+numCuts = length(cutoff);
+weightedEn_split = zeros(size(En_split_tot));
+
+for ii = 1:numCuts
+    % Logical mask for which particles exceed this energy threshold
+    mask = En_split_tot > En_cut(ii);
+
+    % Weight for this level of splitting
+    w = 0.5^ii;
+
+    % Apply weight only to particles that meet this condition
+    weightedEn_split(mask) = weightedEn_split(mask) + w * En_split_tot(mask);
+end
+%%
+
+plaw = bins(43:86).^(-1); plaw = plaw ./ trapz(bins(43:86),plaw);
 n0 = histcounts(En_up_tot(:,3),bins);
-nf = histcounts(En_total,bins);
-n0(end+1) = 0.0; nf(end+1) = 0.0;
+nf = histcounts(0.5.*En_up_tot,bins);
+ns = histcounts(weightedEn_split,bins);
+ns = nf + ns;
+n0(end+1) = 0.0; nf(end+1) = 0.0; ns(end+1) = 0.0;
 figure()
 hold on
 grid on
 xline(((0.5.*m.*(2*U1).^2)./1.6e-6),'LineWidth',2)
-plot(bins,n0./sum(n0),'LineWidth',2)
-plot(bins,nf./sum(nf),'LineWidth',2)
+scatter(bins,n0./sum(n0),'o','filled','b')
+scatter(bins,nf./sum(nf),'o','filled','r')
+%scatter(bins,ns./sum(ns),'o','filled','g')
+plot(bins(43:86),plaw,'--k','LineWidth',2)
 ax = gca;
 ax.XScale = 'log';
 ax.YScale = 'log';
-saveas(gcf,'energy.png');
+xlabel('Kinetic Energy [MeV]')
+ylabel('f(E) [Normalized Units]')
+saveas(gcf,'energy.png')
+
+
+%%
+LECP = [4.558E+02  4.481E+00  2.147E+02  1.958E+00  1.030E+02  1.055E+00  4.924E+01  6.262E-01  1.771E+01  1.835E-01  1.261E+01  1.317E-01  5.923E+00  5.645E-02  1.358E+00  2.486E-02];
+V2bins = [3.25*0.01,6*0.01, 0.1, 1.75*0.1, 3.25*0.1, 7*0.1, 1.5, 3];
+jE_0 = (n0) ./( (4*pi) .* (0.03).*(sqrt(bins)./sqrt(2/(A*938))) );
+jE_f = (nf) ./( (4*pi) .* (0.03).*(sqrt(bins)./sqrt(2/(A*938))) );
+jE_s = (ns) ./( (4*pi) .* (0.03).*(sqrt(bins)./sqrt(2/(A*938))) );
+
+figure()
+hold on
+grid on
+scatter(bins,jE_0,'o','filled','b')
+scatter(bins,jE_f,'o','filled','r')
+%scatter(bins,jE_s,'o','filled','g')
+scatter(V2bins,LECP(1:2:end),'s','filled')
+ax = gca;
+ax.XScale = 'log';
+ax.YScale = 'log';
+xlabel('Kinetic Energy [MeV]')
+ylabel('Differential Flux J(E) [#/cm^2/s/sr/MeV]')
+saveas(gcf,'flux.png')

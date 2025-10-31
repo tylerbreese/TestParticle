@@ -21,7 +21,7 @@ fi
 
 # Run MATLAB in batch mode
 echo "Running MATLAB with input file: $INPUT_FILE"
-matlab -batch "input_file='${INPUT_FILE}'; run('run_no_track.m')"
+matlab -batch "input_file='${INPUT_FILE}'; run('run_helium.m')"
 
 
 # make exec
