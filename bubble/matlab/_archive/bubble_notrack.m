@@ -206,6 +206,7 @@ end
 function [w_g,r_g,gamma] = calc_gyrofrequency(B,p)
     global c q m 
     gamma = (1 + ((vecnorm(p,2,2)./(m*c))).^2).^(0.5);
+   
     % 
     % boost(:,1) = (1 - (p(:,1).^2 ./ m*c^2))./gamma;
     % boost(:,2) = (1 - (p(:,2).^2 ./ m*c^2))./gamma;
