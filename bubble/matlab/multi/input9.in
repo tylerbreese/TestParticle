@@ -1,0 +1,8 @@
+run_name = input9
+sample_size = 10000
+Cycles = 10000
+Th = 1.5708
+Del = 0.0
+U1 = 2000e5
+B1 = 0.5
+var = 0.5

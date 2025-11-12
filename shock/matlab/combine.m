@@ -1,5 +1,5 @@
 
-folder = 'proton';
+folder = 'helium';
 files = dir(fullfile(folder,'*h5'));
 files = {files.name};
 for ii = 1:length(files)
@@ -75,7 +75,7 @@ grid on
 xline(((0.5.*m.*(2*U1).^2)./1.6e-6),'LineWidth',2)
 scatter(bins,n0./sum(n0),'o','filled','b')
 scatter(bins,nf./sum(nf),'o','filled','r')
-%scatter(bins,ns./sum(ns),'o','filled','g')
+scatter(bins,ns./sum(ns),'o','filled','g')
 plot(bins(43:86),plaw,'--k','LineWidth',2)
 ax = gca;
 ax.XScale = 'log';
@@ -95,13 +95,13 @@ jE_s = (ns) ./( (4*pi) .* (0.03).*(sqrt(bins)./sqrt(2/(A*938))) );
 figure()
 hold on
 grid on
-scatter(bins,jE_0,'o','filled','b')
-scatter(bins,jE_f,'o','filled','r')
-%scatter(bins,jE_s,'o','filled','g')
+scatter(bins./A,jE_0./A,'o','filled','b')
+scatter(bins./A,jE_f./A,'o','filled','r')
+scatter(bins./A,jE_s./A,'o','filled','g')
 scatter(V2bins,LECP(1:2:end),'s','filled')
 ax = gca;
 ax.XScale = 'log';
 ax.YScale = 'log';
 xlabel('Kinetic Energy [MeV]')
-ylabel('Differential Flux J(E) [#/cm^2/s/sr/MeV]')
+ylabel('Differential Flux J(E) [#/cm^2/s/sr/MeV/nuc]')
 saveas(gcf,'flux.png')
