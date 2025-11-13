@@ -1,5 +1,5 @@
 
-folder = 'helium';
+folder = '1000 cycles/proton';
 files = dir(fullfile(folder,'*h5'));
 files = {files.name};
 for ii = 1:length(files)
@@ -31,7 +31,10 @@ end
 
 U1 = 400e5;
 B1 = 0.05e-5;
-bins = logspace(-4,3,100);
+bins = logspace(-4,4,100);
+dE = diff(bins)./bins(2:end);
+dE = dE(1); %this dE/E actually
+
 En_up_tot = [];
 En_do_tot = [];
 En_total = [];
@@ -44,23 +47,49 @@ for jj = 1:10
 end
 %%
 
-cutoff = [2,5,logspace(1,2,8)];
-En_cut = ((0.5 .* m .* ( U1).^2) ./ 1.6e-6) .* cutoff;
+% cutoff = [2,5,logspace(1,2,8)];
+% En_cut = ((0.5 .* m .* ( U1).^2) ./ 1.6e-6) .* cutoff;
+% 
+% % Preallocate arrays
+% numCuts = length(cutoff);
+% weightedEn_split = zeros(size(En_split_tot));
+% 
+% for ii = 1:numCuts
+%     % Logical mask for which particles exceed this energy threshold
+%     mask = En_split_tot > En_cut(ii);
+% 
+%     % Weight for this level of splitting
+%     w = 0.5^ii;
+% 
+%     % Apply weight only to particles that meet this condition
+%     weightedEn_split(mask) = weightedEn_split(mask) + w * En_split_tot(mask);
+% end
+cutoff = [2, 5, logspace(1, 2, 8)];
+En_cut = ((0.5 .* m .* (U1).^2) ./ 1.6e-6) .* cutoff;
 
-% Preallocate arrays
-numCuts = length(cutoff);
+numCuts = length(En_cut);
+
+% Preallocate
 weightedEn_split = zeros(size(En_split_tot));
 
-for ii = 1:numCuts
-    % Logical mask for which particles exceed this energy threshold
-    mask = En_split_tot > En_cut(ii);
+for ii = 1:numCuts-1   % go up to numCuts-1 because we use ii and ii+1
+    E_lower = En_cut(ii);
+    E_upper = En_cut(ii+1);
 
-    % Weight for this level of splitting
+    % Mask for energies between bounds
+    mask = (En_split_tot > E_lower) & (En_split_tot <= E_upper);
+
+    % Weight for this range (you can adjust this rule as needed)
     w = 0.5^ii;
 
-    % Apply weight only to particles that meet this condition
-    weightedEn_split(mask) = weightedEn_split(mask) + w * En_split_tot(mask);
+    % Apply weighting
+    weightedEn_split(mask) = weightedEn_split(mask) + w .* En_split_tot(mask);
 end
+
+% Optional: handle values above the highest cutoff
+mask_high = En_split_tot > En_cut(end);
+weightedEn_split(mask_high) = weightedEn_split(mask_high) + 0.5^numCuts .* En_split_tot(mask_high);
+
 %%
 
 plaw = bins(43:86).^(-1); plaw = plaw ./ trapz(bins(43:86),plaw);
@@ -74,7 +103,7 @@ hold on
 grid on
 xline(((0.5.*m.*(2*U1).^2)./1.6e-6),'LineWidth',2)
 scatter(bins,n0./sum(n0),'o','filled','b')
-scatter(bins,nf./sum(nf),'o','filled','r')
+%scatter(bins,nf./sum(nf),'o','filled','r')
 scatter(bins,ns./sum(ns),'o','filled','g')
 plot(bins(43:86),plaw,'--k','LineWidth',2)
 ax = gca;
@@ -88,17 +117,22 @@ saveas(gcf,'energy.png')
 %%
 LECP = [4.558E+02  4.481E+00  2.147E+02  1.958E+00  1.030E+02  1.055E+00  4.924E+01  6.262E-01  1.771E+01  1.835E-01  1.261E+01  1.317E-01  5.923E+00  5.645E-02  1.358E+00  2.486E-02];
 V2bins = [3.25*0.01,6*0.01, 0.1, 1.75*0.1, 3.25*0.1, 7*0.1, 1.5, 3];
-jE_0 = (n0) ./( (4*pi) .* (0.03).*(sqrt(bins)./sqrt(2/(A*938))) );
-jE_f = (nf) ./( (4*pi) .* (0.03).*(sqrt(bins)./sqrt(2/(A*938))) );
-jE_s = (ns) ./( (4*pi) .* (0.03).*(sqrt(bins)./sqrt(2/(A*938))) );
-
+jE_0 = (n0) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
+jE_f = (nf) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
+jE_s = (ns) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
+pp = hex2rgb('#6F00BA');
 figure()
 hold on
 grid on
-scatter(bins./A,jE_0./A,'o','filled','b')
-scatter(bins./A,jE_f./A,'o','filled','r')
-scatter(bins./A,jE_s./A,'o','filled','g')
-scatter(V2bins,LECP(1:2:end),'s','filled')
+% scatter(bins./A,jE_0.*A,'o','filled','b')
+% scatter(bins./A,jE_f.*A,'o','filled','r')
+% scatter(bins./A,jE_s.*A,'o','filled','g')
+scatter(bins,jE_0,'o','filled','b')
+%scatter(bins,jE_f,'o','filled','r')
+scatter(bins,jE_s,'o','filled','g')
+if contains(folder,'proton')
+    scatter(V2bins,LECP(1:2:end),[],pp,'s','filled')
+end
 ax = gca;
 ax.XScale = 'log';
 ax.YScale = 'log';
