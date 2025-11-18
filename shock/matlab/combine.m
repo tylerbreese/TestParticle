@@ -1,5 +1,5 @@
 
-folder = '1000 cycles/proton';
+folder = 'helium';
 files = dir(fullfile(folder,'*h5'));
 files = {files.name};
 for ii = 1:length(files)
@@ -39,7 +39,7 @@ En_up_tot = [];
 En_do_tot = [];
 En_total = [];
 En_split_tot = [];
-for jj = 1:10
+for jj = 1:length(files)
     En_up_tot     = cat(1,En_up_tot,En_up{jj});
     En_do_tot     = cat(1,En_do_tot,En_do{jj});
     En_total      = cat(1,En_total,En_final{jj});

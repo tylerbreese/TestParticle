@@ -64,13 +64,8 @@ saveas(gcf,'energy.png')
 figure()
 hold on
 grid on
-scatter(squeeze(X(:,1,2))./1e5, En_total(1:1e4,2), [],'r','x' )
-scatter(squeeze(X(:,1,3))./1e5, En_total(1:1e4,3), [],'b','filled','o' )
-xlabel('Radial Position (km)')
-ylabel('Kinetic Energy (MeV)')
-saveas(gcf,'space.png')
-%%
-figure()
-polarscatter(En_total(1:1e4,3),squeeze(X(:,1,3))./1e5 )
-hold on
-polarscatter(En_total(1:1e4,2),squeeze(X(:,1,2))./1e5 )
+scatter(squeeze(X(:,1,3))., En_total(1:1e4,3), [],'b','filled','o' )
+scatter(squeeze(X(:,1,2)), En_total(1:1e4,2), [],'b','filled','o' )
+ax = gca;
+%ax.XScale = 'log';
+ax.YScale = 'log';

@@ -90,11 +90,12 @@ for n = 1:num_steps-1
     pmag(:,2) = sqrt( Vnew(:,1).^2 + Vnew(:,2).^2 + Vnew(:,3).^2 );
     % X(:,:,n+1) = Xnew;
     % V(:,:,n+1) = Vnew;
+    Xnew = boundary(Xnew); %applied periodic boundary conditions
     X(:,:,2) = Xnew;
     p(:,:,2) = Vnew;
     X(:,:,1) = X(:,:,2);
     p(:,:,1) = p(:,:,2);
-    cutoff = [2,5,logspace(1,2,8)];
+    % cutoff = [2,5,logspace(1,2,8)];
     % [Split] = particle_split(X,p,pmag,cutoff,Split,K);
     % [Split] = particle_displace(Split,Rg);
     % for jj = 1:length(Split)
@@ -210,4 +211,20 @@ function [split] = particle_displace(split,R_g)
             split{ii}{1} = X_split; split{ii}{2} = V_split;
         end
     end
+end
+
+function [X2]  = boundary(X1)
+    
+    X2 = X1; %no change in positions
+
+    Lb = 100*1e5; %100 km diamater
+    track = double(X1(:,1) < -Lb); % if you break the boundary get turned around
+    
+    Xswap = ones(length(X1),1);
+    
+    Xswap(track==0,1) = X1(track==0,1);
+    Xswap(track==1,1) = 0.0;
+    
+    X2(:,1) = Xswap;
+
 end

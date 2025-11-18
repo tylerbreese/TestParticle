@@ -4,6 +4,7 @@
         "1000 cycles/proton"
         "1000 cycles/helium"
         "10000 cycles/helium"
+        "helium"
         ];
     for kk = 1:length(Folders)
         folder = Folders(kk);
@@ -146,6 +147,7 @@ nHe = 0.1.*nH;
 dist1 = [out{1}{1}];
 dist2 = [out{2}{1}];
 dist3 = [out{3}{1}];
+dist4 = [out{4}{1}];
 
 figure()
 hold on
@@ -154,6 +156,8 @@ grid on
 scatter(dist2(1,:),dist2(2,:).*nHe,'o','filled','b')
 scatter(dist2(1,:),dist2(3,:).*nHe,'o','filled','r')
 scatter(dist3(1,:),10.*dist3(3,:).*nHe,'o','filled','g')
+
+scatter(dist4(1,:),10.*dist4(3,:).*nHe,'o','filled','k')
 
 scatter(dist1(1,:),dist1(2,:).*nH,'x','k') 
 scatter(dist1(1,:),dist1(3,:).*nH,'x','m')
@@ -169,5 +173,5 @@ ax.YScale = 'log';
 xlabel('Kinetic Energy [MeV]')
 ylabel('Differential Flux J(E) [#/cm^2/s/sr/MeV]')
 
-legend('He+, Initial','He+, Final (1000\Omega_g^{-1})','He+, Final (100000\Omega_g^{-1})', ...
+legend('He+, Initial','He+, Final (1000\Omega_g^{-1})','He+, Final (10000\Omega_g^{-1})','He+, Final (100000\Omega_g^{-1})', ...
     'H+, Initial (1000\Omega_g^{-1})','H+, Final (1000\Omega_g^{-1})')
