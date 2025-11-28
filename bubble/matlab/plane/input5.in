@@ -1,7 +1,7 @@
 run_name = input5
 sample_size = 10000
 Cycles = 100000
-Th = 1.5708
+Th = 0.0
 Del = 0.0
 U1 = 2000e5
 B1 = 0.5
