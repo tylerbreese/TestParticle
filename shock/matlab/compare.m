@@ -133,7 +133,32 @@ IBEX = [
     24+(35-24)/2, 0.06
     35+(55-35)/2, 0.02
     ];
+CRS = [
+  3.8  4.222e+01  
+  3.8  4.954e+01  
+  5.4  0.000e+00  
+  5.4  1.759e+01  
+  5.4  1.415e+01  
+  7.0  0.000e+00  
+  7.0  7.506e+00  
+  7.0  1.510e+01  
+  10.3  6.412e+00  
+  15.4  7.011e+00  
+  24.0  7.897e+00  
+  39.0  2.694e+00  
+  52.0  1.029e+00  
+  90.0  7.331e-01  
+  140.0  5.908e-01  
+  168.0  6.947e-01  
+  215.0  5.625e-01  
+  261.0  6.091e-01  
+  325.0  5.740e-01  
+  416.0  3.630e-01  
+  526.0  0.000e+00  
+  ];
 
+CRS(:,1) = 4.*CRS(:,1);
+CRS(:,2) = 1e-4 .* CRS(:,2) ./ 4;
 %% plotting
 % some colors
 dg = hex2rgb('#006400');
@@ -148,7 +173,7 @@ dist1 = [out{1}{1}];
 dist2 = [out{2}{1}];
 dist3 = [out{3}{1}];
 dist4 = [out{4}{1}];
-
+%%
 figure()
 hold on
 grid on
@@ -175,3 +200,85 @@ ylabel('Differential Flux J(E) [#/cm^2/s/sr/MeV]')
 
 legend('He+, Initial','He+, Final (1000\Omega_g^{-1})','He+, Final (10000\Omega_g^{-1})','He+, Final (100000\Omega_g^{-1})', ...
     'H+, Initial (1000\Omega_g^{-1})','H+, Final (1000\Omega_g^{-1})')
+
+%%
+fprintf('Proton Fits\n')
+[a_p,b_p]   = lin_reg(dist1(1,21:end),dist1(3,21:end));
+fprintf('Helium Fits\n')
+[a_he,b_he] = lin_reg(dist4(1,26:end),10.*dist4(3,26:end).*nHe);
+
+figure()
+hold on
+grid on
+scatter(dist4(1,:),10.*dist4(2,:).*nHe,'o','filled','k')
+scatter(dist4(1,:),10.*dist4(3,:).*nHe,'o','filled','b')
+scatter(dist1(1,:),dist1(2,:).*nH,'x','k') 
+scatter(dist1(1,:),dist1(3,:).*nH,'x','m')
+scatter(V2bins,LECP(1:2:end),[],pp,'s','filled')
+plot(dist1(1,21:end),a_p.*dist1(1,21:end).^(b_p),'m')
+plot(dist1(1,26:end),a_he.*dist4(1,26:end).^(b_he),'c')
+scatter(CRS(:,1),CRS(:,2),[],bb,'d','filled')
+ax = gca;
+ax.XScale = ' log';
+ax.YScale = 'log';
+xlabel('Kinetic Energy [MeV]')
+ylabel('Differential Flux J(E) [#/cm^2/s/sr/MeV]')
+legend('He+, Initial','He+, Final','H+, Initial','H+, Final')
+
+%%
+ENA_p  = a_p.*dist1(1,21:end).^(b_p) .* (DR./lambda(21:end));
+ENA_he = a_he.*dist4(1,26:end).^(b_he) .* (0.1.*DR./lambda(26:end));
+
+
+figure()
+hold on 
+grid on
+scatter(IBEX(:,1),IBEX(:,2),[],or,'d','filled')
+scatter(1000.*V2bins,V2ENA,[],pp,'d','filled')
+plot(1000.*dist1(1,21:end),ENA_p,'m','LineWidth',2)
+plot(1000.*dist1(1,26:end),ENA_he,'c','LineWidth',2)
+ax = gca;
+ax.XScale = ' log';
+ax.YScale = 'log';
+ax.XLim = [1e-2,1e3];
+xlabel('Kinetic Energy [keV]')
+ylabel('Differential Flux J(E) [#/cm^2/s/sr/keV]')
+legend('IBEX/CASSINI','V2 LECP','Simulation H+','Simulaton He+')
+%%
+
+
+
+function [a,b] = lin_reg(X,Y)
+% Ensure X and Y are column vectors
+X = X(:);
+Y = Y(:);
+
+% Remove any nonpositive values
+valid = (X > 0) & (Y > 0);
+X = X(valid);
+Y = Y(valid);
+
+
+% Log-transform
+xlog = log(X);
+ylog = log(Y);
+
+% Compute means
+mx = mean(xlog);
+my = mean(ylog);
+
+% Compute slope b
+num = sum( (xlog - mx) .* (ylog - my) );     % covariance
+den = sum( (xlog - mx).^2 );                 % variance
+b = num / den;
+
+% Compute intercept ln(a)
+ln_a = my - b * mx;
+
+% Convert to a
+a = exp(ln_a);
+
+% Display results
+fprintf('a = %g\n', a);
+fprintf('b = %g\n', b);
+end
