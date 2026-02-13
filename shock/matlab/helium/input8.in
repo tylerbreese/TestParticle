@@ -1,6 +1,6 @@
 run_name = eight
 sample_size = 10000
-Cycles = 100000
+Cycles = 10000
 Th = 1.5708
 Del = 0.0
 U1 = 400e5

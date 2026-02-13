@@ -17,8 +17,8 @@ classdef InitParticles
         end
 
         function [r,a,b] = init_shock(obj,U0, th, del)
-            Va = 30e5; % cm/s
-            Vs = 70e5; % cm/s
+            Va = 38e5; % cm/s
+            Vs = 111e5; % cm/s
             Ms = vecnorm(U0,2,1) ./ Vs;
             Ma = vecnorm(U0,2,1) ./ Va;
             r = ((5/3) + 1) / ((5/3) - 1 + (2/Ms^2));

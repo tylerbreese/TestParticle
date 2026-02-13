@@ -1,11 +1,12 @@
     %%grab multiple datasets and plot them to compare
     
-    Folders = [
-        "1000 cycles/proton"
-        "1000 cycles/helium"
-        "10000 cycles/helium"
-        "helium"
-        ];
+    % Folders = [
+    %     "1000 cycles/proton"
+    %     "1000 cycles/helium"
+    %     "10000 cycles/helium"
+    %     "helium"
+    %     ];
+    Folders = "helium";
     for kk = 1:length(Folders)
         folder = Folders(kk);
         files = dir(fullfile(folder,'*h5'));
@@ -173,6 +174,8 @@ dist1 = [out{1}{1}];
 dist2 = [out{2}{1}];
 dist3 = [out{3}{1}];
 dist4 = [out{4}{1}];
+
+dist1 = out{1}{1};
 %%
 figure()
 hold on
@@ -282,3 +285,20 @@ a = exp(ln_a);
 fprintf('a = %g\n', a);
 fprintf('b = %g\n', b);
 end
+
+%%
+dist1 = out{1}{1};
+
+figure()
+hold on
+grid on
+scatter(dist1(1,:),dist1(2,:).*nHe,'o','k','filled') 
+scatter(dist1(1,:),dist1(3,:).*nHe,'o','g','filled')
+scatter(V2bins,LECP(1:2:end),[],pp,'s','filled')
+scatter(CRS(:,1),CRS(:,2),[],bb,'d','filled')
+ax = gca;
+ax.XScale = ' log';
+ax.YScale = 'log';
+xlabel('Kinetic Energy [MeV]')
+ylabel('Differential Flux J(E) [#/cm^2/s/sr/MeV]')
+legend('He+, Initial','He+, Final','V2 LECP @ TS','V2 CRS @ TS')
