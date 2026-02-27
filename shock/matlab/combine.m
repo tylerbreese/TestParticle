@@ -1,5 +1,5 @@
 
-folder = 'helium';
+folder = 'proton';
 files = dir(fullfile(folder,'*h5'));
 files = {files.name};
 for ii = 1:length(files)
@@ -117,9 +117,9 @@ saveas(gcf,'energy.png')
 %%
 LECP = [4.558E+02  4.481E+00  2.147E+02  1.958E+00  1.030E+02  1.055E+00  4.924E+01  6.262E-01  1.771E+01  1.835E-01  1.261E+01  1.317E-01  5.923E+00  5.645E-02  1.358E+00  2.486E-02];
 V2bins = [3.25*0.01,6*0.01, 0.1, 1.75*0.1, 3.25*0.1, 7*0.1, 1.5, 3];
-jE_0 = (n0) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
-jE_f = (nf) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
-jE_s = (ns) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
+jE_0 = (751.*n0) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
+jE_f = (751.*nf) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
+jE_s = (751.*ns) ./( (4*pi) .* (dE).*(sqrt(bins)./sqrt(2/(A*938))) );
 pp = hex2rgb('#6F00BA');
 figure()
 hold on

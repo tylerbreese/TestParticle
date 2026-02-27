@@ -1,0 +1,9 @@
+run_name = five
+sample_size = 10000
+Cycles = 10000
+Th = 1.5708
+Del = 0.0
+U1 = 400e5
+B1 = 0.05e-5
+var = 0.5
+
