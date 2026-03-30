@@ -20,7 +20,7 @@ namespace inputs {
     const double n_SW = 5.0; // cm^-3 SW thermal density
     const double n_PUI = 0.3; // cm^-3 PUI density
     const double R0 = 62.0; // in AU
-    const double th  = 90.0 * (PI / 180.0); 
+    const double th  = 60.0 * (PI / 180.0); 
     const double del = 0.0 * (PI / 180.0);
     // --- Simulation Inputs ---
     const int sample_size = 50;

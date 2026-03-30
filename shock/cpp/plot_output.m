@@ -28,7 +28,7 @@ b0 = 0.05e-5;
 figure()
 hold on 
 grid on
-% plot(r(:,2)./R,B(:,2)./b0)
-% plot(r(:,2)./R,B(:,3)./b0)
+plot(r(:,2)./R,B(:,2)./b0)
+plot(r(:,2)./R,B(:,3)./b0)
 plot(r(:,2)./R,B(:,4)./b0)
-% plot(r(:,2)./R,B(:,5)./b0)
+plot(r(:,2)./R,B(:,5)./b0)

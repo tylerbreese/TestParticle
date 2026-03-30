@@ -319,9 +319,8 @@ int main() {
 
             double x = as_scalar(X.slice(j).row(i).col(0));
             if ( (x-Rs(j)) > 100.0*Rg ) {
-                double P_escape = randu();
-                //cout << "P_r" << P_return << endl;
-                double P_return = boundary(U1,V.slice(j).row(i),r);
+                double P_return = randu();
+                double P_escape = boundary(U1,V.slice(j).row(i),r);
                 if (P_escape > P_return){ 
                     cout << "Particle " << i << " has left the building \n";
                     cout << "Particle " << i << " lasted " << j << " steps \n";
