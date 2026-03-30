@@ -3,7 +3,7 @@
 #include <armadillo>
 
 // main function
-void ip_snowplow(double Us, double V_SW, const arma::vec& T, double dt, arma::vec& U, arma::vec& Cs, arma::vec& vA);
+void ip_snowplow(double Us, double V_SW, const arma::vec& T, double dt, arma::vec& U, arma::vec& Cs, arma::vec& vA, arma::vec& R);
 
 // helpers
 double get_density(double r);

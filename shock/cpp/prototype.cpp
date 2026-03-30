@@ -143,10 +143,10 @@ Field shock_field(mat X, double x0, mat U0, mat B0, double r, double a, double b
     result.Bnow = B;
     return result;
 }
+
 struct TurbyInit {
     mat An, Bn, K;
 };
-
 TurbyInit init_turby(double Lmin, double Lmax, int N, double s2, mat U0, mat vA) {
     double kmax = 2.0 * inputs::PI / Lmin;
     double kmin = 2.0 * inputs::PI / Lmax;
@@ -201,9 +201,10 @@ TurbyInit init_turby(double Lmin, double Lmax, int N, double s2, mat U0, mat vA)
     
     return result;
 }
-mat sum_turby(mat X, double T, mat K, mat An, mat Bn, double sign) {
+mat sum_turby(mat X, double T, mat K, mat An, mat Bn) {
 
-    vec arg = sign * (K.col(0) * X(0) + K.col(1) * X(1) + K.col(2) * X(2)) + K.col(3) * T + K.col(4);
+    vec arg = (K.col(0) * X(0) + K.col(1) * X(1) + K.col(2) * X(2)) + K.col(4);
+    //vec arg = sign * (K.col(0) * X(0) + K.col(1) * X(1) + K.col(2) * X(2)) + K.col(3) * T + K.col(4);
     
     mat dB(1,3);
     dB.col(0) = sum(An.col(0) % cos(arg) + Bn.col(0) % sin(arg));
@@ -212,28 +213,7 @@ mat sum_turby(mat X, double T, mat K, mat An, mat Bn, double sign) {
     
     return dB;
 }
-struct Coeff {
-    double dBp;
-    double dBm;
-};
-Coeff transmission(double r, mat U1, mat U2, mat vA, double sign) {
-    double sr = sqrt(r);
-    
-    double n  = (as_scalar(U1.col(2)) + sign * as_scalar(vA.col(2))) * ((1.0 / r) + sign * (1.0 / sr));
-    double dp = 2.0 * (as_scalar(U2.col(2)) + (as_scalar(vA.col(2)) / sr));
-    double dm = 2.0 * (as_scalar(U2.col(2)) - (as_scalar(vA.col(2)) / sr));
-    
-    Coeff result;
-    result.dBp =  sign * sr * (n / dp);
-    result.dBm = -sign * sr * (n / dm);
-    
-    return result;
-}
 
-void updown(const double& vA, const mat& U1, double& sign, double& Ma) {
-    Ma = norm(U1) / vA;
-    sign = (Ma > 1.0) ? 1.0 : -1.0;
-}
 
 double boundary(mat U1, mat V, double r) {
 
@@ -276,9 +256,11 @@ int main() {
 
     // // --- Initialize ---
     mat V0(sample_size,3);
-    V0 = sampling(sample_size,U0);
+    V0 = sampling(sample_size,Usw);
     //vec xinit = (2.0 * randu<vec>(sample_size) - 1.0) * (100.0 * Rg);
-    vec xinit = ones<vec>(sample_size) * (100.0 * Rg); // drop in particles upstream in fixed plane
+    vec xinit = ones<vec>(sample_size) * (100.0 * Rg); // drop in particles upstream in fixed plane'
+    // vec yinit = zeros<vec>(sample_size);
+    // vec zinit = zeros<vec>(sample_size);
     vec yinit = (2.0 * randu<vec>(sample_size) - 1.0) * (100.0 * Rg);
     vec zinit = (2.0 * randu<vec>(sample_size) - 1.0) * (100.0 * Rg);
 
@@ -294,34 +276,31 @@ int main() {
     V.slice(0).col(2) = V0.col(2);
 
     // --- Init Shock and Turby
-    // mat U1 = U0; // constant shock speed
-    // vA = 30e5; // cm/s
-    // Cs = 70e5; // cm/s
-    vec U, Cs, vA; // variable shock speed
-    ip_snowplow(as_scalar(norm(U0)), as_scalar(norm(Usw)), T, dt, U, Cs, vA);
-    mat U1(1,3); //shock speed (U1)
-    U1.col(0) = U(0) * cos(del) - Usw(0); // U1 = U_shock - U_adv
-    U1.col(1) = 0.0 - Usw(1);
-    U1.col(2) = U(0) * sin(del) - Usw(2); 
+    double vA =  30.0e5; // cm/s
+    double Cs = 149.0e5; // cm/s
+    mat U1 = U0 - Usw;
     mat V_A(1,3); //vector alfven 
-    V_A.col(0) = vA(0) * cos(th); // follows from B 
+    V_A.col(0) = vA * cos(th); // follows from B 
     V_A.col(1) = 0.0;
-    V_A.col(2) = vA(0) * sin(th);
+    V_A.col(2) = vA * sin(th);
     //double r, a, b; mat U2;  
-    auto [r,a,b,U2] = init_shock(U1,th,del,vA(0),Cs(0));
+    auto [r,a,b,U2] = init_shock(U1,th,del,vA,Cs);
+    cout << r << endl;
+    cout << Rg << endl;
     const double N    = 201;
     const double Lmin = 0.5*Rg;
-    const double Lmax = 0.01*1.496e13; 
-    auto [An,Bn,K]  = init_turby(Lmin,Lmax,N,s2,U0,V_A);
+    const double Lmax = 1.496e13; 
+    auto [An,Bn,K]  = init_turby(Lmin,Lmax,N,s2,U1,V_A);
+    mat Btrack(T.n_elem,4);
     // --- Integration ---
     for (int i = 0; i < sample_size; i++) {
         for (int j = 0; j < num_steps-1; j++){
 
             double x = as_scalar(X.slice(j).row(i).col(0));
             if ( (x-x0) > 250.0*Rg ) {
-                double P_return = randu();
+                double P_escape = randu();
                 //cout << "P_r" << P_return << endl;
-                double P_escape = boundary(U1,V.slice(j).row(i),r);
+                double P_return = boundary(U1,V.slice(j).row(i),r);
                 if (P_escape > P_return){ 
                     cout << "Particle " << i << " has left the building \n";
                     cout << "Particle " << i << " lasted " << j << " steps \n";
@@ -336,25 +315,12 @@ int main() {
                 }
             }
 
-            U1.col(0) = U(0) * cos(del) - Usw(0);
-            U1.col(1) = 0.0 - Usw(1);
-            U1.col(2) = U(0) * sin(del) - Usw(2);  
-            double sign, Ma;
-            updown(vA(j),U1,sign,Ma);
-            mat dB = sum_turby(X.slice(j).row(i),T(j),K,An,Bn,sign);
-            auto [r,a,b,U2] = init_shock(U1,th,del,vA(j),Cs(j));
-            auto [Unow,Bnow] = shock_field(X.slice(j).row(i), x0, U1, B0, r, a, b);
-            
-            if ( (x-x0) > 0.0 ) {
-                mat V_A(1,3); //vector alfven 
-                V_A.col(0) = vA(j) * cos(th); // follows from B 
-                V_A.col(1) = 0.0;
-                V_A.col(2) = vA(j) * sin(th);
-                auto [dBp,dBm] = transmission(r,U1,U2,V_A,sign);
-                dB = dB * (dBp + dBm);
-            }
-            Bnow = Bnow + dB; // sum matched fields
-
+            mat dB = sum_turby(X.slice(j).row(i),T(j),K,An,Bn);
+            auto [Unow,Bnow] = shock_field(X.slice(j).row(i), x0, U1, B0+dB, r, a, b);
+            Btrack(j,0) = as_scalar(Bnow.col(0));
+            Btrack(j,1) = as_scalar(Bnow.col(1));
+            Btrack(j,2) = as_scalar(Bnow.col(2));
+            Btrack(j,3) = as_scalar(norm(Bnow));
             mat Xold = X.slice(j).row(i);
             mat Vold = V.slice(j).row(i);
             auto [Xnew, Vnew] = integrate_boris(Xold, Vold, Unow, Bnow, dt);
@@ -383,6 +349,16 @@ int main() {
                 << V(pick, 2, i) << "\n"; // Use \n for faster file writing
     }
     vf.close();
+    ofstream bf("magfield_data.csv");
+    bf << "Step,Bx,By,Bz,Bm" << endl;
+    for (int i = 0; i < num_steps; i++) {
+        bf << i << "," 
+                << Btrack(i, 0) << "," 
+                << Btrack(i, 1) << ","
+                << Btrack(i, 2) << "," 
+                << Btrack(i, 3) << "\n"; // Use \n for faster file writing
+    }
+    bf.close();
     cout << "Data saved to simulation_data.csv" << endl;
 
 

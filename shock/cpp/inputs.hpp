@@ -16,25 +16,32 @@ namespace inputs {
     const double m  = A * 1.67E-24;    // mass in grams
     const double PI = 3.14159265358979323846;
 
-    // --- Simulation Inputs ---
-    const int sample_size = 1000;
+    // --- Shock Inputs ---
+    const double n_SW = 5.0; // cm^-3 SW thermal density
+    const double n_PUI = 0.3; // cm^-3 PUI density
+    const double R0 = 62.0; // in AU
     const double th  = 90.0 * (PI / 180.0); 
     const double del = 0.0 * (PI / 180.0);
+    // --- Simulation Inputs ---
+    const int sample_size = 50;
+    const double U0  = 800.0e5;
+    const double B0  = 0.05e-5;
+    const double Usw = 400.0e5;
     const double cycles = 10000.0;
     const double var = 0.5;
     inline mat init_U0() {
-        return {1000.0e5 * cos(del), 0.0, 1000.0e5 * sin(del)};
+        return {U0 * cos(del), 0.0, U0 * sin(del)};
     }
     inline mat init_B0() {
-        return {5.0e-5 * cos(th), 0.0, 5.0e-5 * sin(th)};
+        return {B0 * cos(th), 0.0, B0 * sin(th)};
     }
     inline mat init_Usw() {
-        return {400.0e5 * cos(del), 0.0, 400.0e5 * sin(del)};
+        return {Usw * cos(del), 0.0, Usw * sin(del)};
     }
 
-    // Derived Constants (Calculated based on the ones above)
-    // Note: 'inline' allows these to be defined in the header without linker errors
-    inline double get_B1() { return as_scalar(norm(init_B0(), 2)); }
+    // Gyrofrequency
+    //inline double get_B1() { return as_scalar(norm(init_B0(), 2)); }
+    inline double get_B1() { return B0; }
     inline double get_Om() { return (abs(q) * get_B1()) / (m * c); }
     inline double get_Rg() { return as_scalar(norm(init_Usw(), 2)) / get_Om(); }
 }
