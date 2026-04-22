@@ -4,6 +4,12 @@ b = readtable('velocity_data.csv');
 v = table2array(b);
 c = readtable('magfield_data.csv');
 B = table2array(c);
+e = readtable('distribution_data.csv');
+En = table2array(e);
+bins = 0:1:10;
+En0 = En(:,4) ./ 1.6e-9;
+Enf = En(:,5) ./ 1.6e-9;
+
 
 R = 8.35e9;
 figure()
@@ -32,3 +38,8 @@ plot(r(:,2)./R,B(:,2)./b0)
 plot(r(:,2)./R,B(:,3)./b0)
 plot(r(:,2)./R,B(:,4)./b0)
 plot(r(:,2)./R,B(:,5)./b0)
+
+figure()
+hold on
+histogram(En0)
+histogram(Enf)

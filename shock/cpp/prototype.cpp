@@ -225,16 +225,37 @@ double boundary(mat U1, mat V, double r) {
     return P;
 }
 
+struct Displace {
+    mat Xdis, Vdis;
+};
+Displace particle_displace(mat X, mat V, double Rg){
+    vec u   = pdfrnd(linspace<vec>(-1.0, 1.0, 2001), ones<vec>(2001), 1);
+    vec phi = pdfrnd(linspace<vec>(0.0, 6.28, 2001), ones<vec>(2001), 1);
+    mat Xdis(1,3);
+    mat Vdis(1,3);
+
+    Xdis.col(0) = X.col(0) + randu() * Rg;
+    Xdis.col(1) = X.col(1) + randu() * Rg;
+    Xdis.col(2) = X.col(2) + randu() * Rg;
+    Vdis.col(0) = V.col(0) * sqrt(1.0 - pow(u, 2)) % cos(phi);
+    Vdis.col(1) = V.col(1) * sqrt(1.0 - pow(u, 2)) % sin(phi);
+    Vdis.col(2) = V.col(2) * u;
+
+    Displace result;
+    result.Xdis = Xdis;
+    result.Vdis = Vdis;
+    return result;
+};
 // --- Main Program ---
 int main() {
     arma_rng::set_seed_random(); // random numbers
     // // --- constants ---
     const double c = 3E10; //speed of light, m/s
     const double e = 4.8E-10; // elementary charge, cgs
-    const double Z = 1; // atomic number
-    const double A = 1; // mass number
-    const double q = 1*e; // ion charge 
-    const double m = A * 1.67E-24; // grams
+    const double Z = inputs::Z; // atomic number
+    const double A = inputs::A; // mass number
+    const double q = inputs::q; // ion charge 
+    const double m = inputs::m; // grams
 
     // // --- Inputs ---
     const int sample_size = inputs::sample_size;
@@ -275,10 +296,13 @@ int main() {
     V.slice(0).col(1) = V0.col(1);
     V.slice(0).col(2) = V0.col(2);
 
+    ofstream sf("splitting_data.csv");
+    sf << "PID,weight,x,y,z,vx,vy,vz" << endl;
     // --- Init Shock and Turby
     double vA =  30.0e5; // cm/s
     double Cs = 149.0e5; // cm/s
-    mat U1 = U0 - Usw;
+    //mat U1 = U0 - Usw;
+    mat U1 = Usw;
     mat V_A(1,3); //vector alfven 
     V_A.col(0) = vA * cos(th); // follows from B 
     V_A.col(1) = 0.0;
@@ -292,7 +316,16 @@ int main() {
     mat Btrack(T.n_elem,4);
     // --- Integration ---
     for (int i = 0; i < sample_size; i++) {
-        for (int j = 0; j < num_steps-1; j++){
+        for (int j = 0; j < num_steps; j++){
+
+            mat dB = sum_turby(X.slice(j).row(i),T(j),K,An,Bn);
+            auto [Unow,Bnow] = shock_field(X.slice(j).row(i), x0, U1, B0+dB, r, a, b);
+            Btrack(j,0) = as_scalar(Bnow.col(0));
+            Btrack(j,1) = as_scalar(Bnow.col(1));
+            Btrack(j,2) = as_scalar(Bnow.col(2));
+            Btrack(j,3) = as_scalar(norm(Bnow));
+            mat Xold = X.slice(j).row(i);
+            mat Vold = V.slice(j).row(i);
 
             double x = as_scalar(X.slice(j).row(i).col(0));
             if ( (x-x0) > 250.0*Rg ) {
@@ -310,23 +343,45 @@ int main() {
                     }
                     break;
                 }
+                auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
+                Vold = Vdis; // "scatter" at the boundary
             }
 
-            mat dB = sum_turby(X.slice(j).row(i),T(j),K,An,Bn);
-            auto [Unow,Bnow] = shock_field(X.slice(j).row(i), x0, U1, B0+dB, r, a, b);
-            Btrack(j,0) = as_scalar(Bnow.col(0));
-            Btrack(j,1) = as_scalar(Bnow.col(1));
-            Btrack(j,2) = as_scalar(Bnow.col(2));
-            Btrack(j,3) = as_scalar(norm(Bnow));
-            mat Xold = X.slice(j).row(i);
-            mat Vold = V.slice(j).row(i);
             auto [Xnew, Vnew] = integrate_boris(Xold, Vold, Unow, Bnow, dt);
             X.slice(j+1).row(i) = Xnew;
             V.slice(j+1).row(i) = Vnew;
+
+            // --- Splitting ---
+            double En0 = 0.5 * m * ( pow(V(i,0,0),2) + pow(V(i,1,0),2) + pow(V(i,2,0),2) );
+            double Enf = 0.5 * m * ( pow(V(i,0,j),2) + pow(V(i,1,j),2) + pow(V(i,2,j),2) );
+            double ratio = Enf / En0;
+            vec cutoff = { 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0, 50.0, 75.0, 100.0 };
+            uvec flag = ratio > cutoff;
+            uword num_true = accu(flag);
+            cout << num_true << endl;
+            if (any(flag)) {
+                // Runs if at least one element is 1
+                for (uword ii = 1; ii <= num_true; ++ii) {
+                    auto [Xspl, Vspl] = particle_displace(Xnew, Vnew, Rg);
+                    // displace particle then save phase space coord for re-entry
+                    sf << i << "," << ii << "," 
+                                         << Xspl(0,0) << "," << Xspl(0,1) << "," << Xspl(0,2) << "," 
+                                         << Vnew(0,0) << "," << Vnew(0,1) << ","  << Vnew(0,2) << "\n";
+                }
+            }
         }
     }
-
+    cout << "all particles tested" << endl;
     // --- Output ---
+    ofstream ef("distribution_data.csv");
+    ef << "PID,x0,xf,E0,Ef" << endl;
+    for (int k = 0; k < sample_size; k++) {
+        ef << k << "," 
+                << X(k,0,0) << ","
+                << X(k,0,num_steps-1) << ","
+                << 0.5 * m * ( pow(V(k,0,0),2) + pow(V(k,1,0),2) + pow(V(k,2,0),2) ) << ","
+                << 0.5 * m * ( pow(V(k,0,num_steps-1),2) + pow(V(k,1,num_steps-1),2) + pow(V(k,2,num_steps-1),2) ) << "\n";
+    }
     int pick = randi(distr_param(0, sample_size-1));
     ofstream xf("position_data.csv");
     xf << "Step,X,Y,Z" << endl;
@@ -334,7 +389,7 @@ int main() {
         xf << i << "," 
                 << X(pick, 0, i) << "," 
                 << X(pick, 1, i) << "," 
-                << X(pick, 2, i) << "\n"; // Use \n for faster file writing
+                << X(pick, 2, i) << "\n"; 
     }
     xf.close();
     ofstream vf("velocity_data.csv");
@@ -343,7 +398,7 @@ int main() {
         vf << i << "," 
                 << V(pick, 0, i) << "," 
                 << V(pick, 1, i) << "," 
-                << V(pick, 2, i) << "\n"; // Use \n for faster file writing
+                << V(pick, 2, i) << "\n"; 
     }
     vf.close();
     ofstream bf("magfield_data.csv");
@@ -353,7 +408,7 @@ int main() {
                 << Btrack(i, 0) << "," 
                 << Btrack(i, 1) << ","
                 << Btrack(i, 2) << "," 
-                << Btrack(i, 3) << "\n"; // Use \n for faster file writing
+                << Btrack(i, 3) << "\n"; 
     }
     bf.close();
     cout << "Data saved to simulation_data.csv" << endl;
