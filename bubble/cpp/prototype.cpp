@@ -287,6 +287,7 @@ int main() {
     vec T = regspace(0, dt, cycles/Om);
 
     // // --- Initialize ---
+    cout << "Begin particle initialization" << endl;
     mat V0(sample_size,3);
     V0 = sampling(sample_size,En);
     //vec xinit = (2.0 * randu<vec>(sample_size) - 1.0) * (100.0 * Rg);
@@ -321,6 +322,7 @@ int main() {
     f3 << "PID,weight,x0,xf,E0,Ef" << endl;
     
     // --- Init Shock and Turby
+    cout << "Begin field initialization" << endl;
     double vA =  300.0e5; // cm/s
     double Cs =  0.6e5; // cm/s
     mat U1 = U0; // constant speed
@@ -336,14 +338,16 @@ int main() {
     auto [An,Bn,K]  = init_turby(Lmin,Lmax,N,s2,U1,V_A);
     mat Btrack(T.n_elem,4);
     // --- Integration ---
+    cout << "Begin integration loop" << endl;
+    //cout << "size of X " << X.n_rows << " x " << X.n_cols << " x " << X.n_slices << endl;
     for (int i = 0; i < sample_size; i++) {
 
         const vec cutoff = { 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0, 50.0, 75.0, 100.0 };
         const double En0 = En; // initial energy predefined
         uword thresholds_passed = 0; // track thresholds for splitting
 
-        for (int j = 0; j < num_steps; j++){
-
+        for (int j = 0; j < num_steps-1; j++){
+            
             mat dB = sum_turby(X.slice(j).row(i),T(j),K,An,Bn);
             auto [Unow,Bnow] = shock_field(X.slice(j).row(i), x0, U1, B0+dB, r, a, b);
             Btrack(j,0) = as_scalar(Bnow.col(0));
@@ -352,7 +356,8 @@ int main() {
             Btrack(j,3) = as_scalar(norm(Bnow));
             mat Xold = X.slice(j).row(i);
             mat Vold = V.slice(j).row(i);
-
+            
+            // --- Boundary Conditions ---
             double x = as_scalar(X.slice(j).row(i).col(0));
             if ( (x-x0) > 250.0*Rg ) {
                 double P_return = randu();
@@ -372,13 +377,20 @@ int main() {
                 auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
                 Vold = Vdis; // "scatter" at the boundary
             }
+            if ( (x-x0) < -250.0*Rg ) {
+                auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
+                Xold.col(0) = x0;
+                Xold.col(1) = Xdis(1);
+                Xold.col(2) = Xdis(2);
+                Vold = Vdis; // "scatter" at the boundary
+            }
 
             auto [Xnew, Vnew] = integrate_boris(Xold, Vold, Unow, Bnow, dt);
             X.slice(j+1).row(i) = Xnew;
             V.slice(j+1).row(i) = Vnew;
 
             // --- Splitting --- 
-            double beta2 = (V(i,0,j)*V(i,0,j) + V(i,1,j)*V(i,1,j) + V(i,2,j)*V(i,2,j)) / (c*c);
+            double beta2 = (Vnew(0,0)*Vnew(0,0) + Vnew(0,1)*Vnew(0,1) + Vnew(0,2)*Vnew(0,2)) / (c*c);
             double gamma = sqrt(1/(1 - beta2));
             double Enf = gamma * 0.512; // energy in MeV
             double ratio = Enf / En0;
@@ -398,10 +410,11 @@ int main() {
                 }
                 thresholds_passed = current_count;
     }
-
+    
         }
     }
     cout << "all particles tested" << endl;
+
     for (int k = 0; k < sample_size; k++) {
         f1 << k << "," 
                 << X(k,0,0) << ","
@@ -477,7 +490,7 @@ int main() {
 }
 
 // run cmd
-//g++ -std=c++17 prototype.cpp ip_snowplow.cpp -o prototype.exe -larmadillo 
+//g++ -std=c++17 prototype.cpp -o prototype.exe -larmadillo 
 
 
 // old output format

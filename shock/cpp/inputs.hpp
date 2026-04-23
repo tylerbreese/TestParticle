@@ -23,7 +23,7 @@ namespace inputs {
     const double th  = 60.0 * (PI / 180.0); 
     const double del = 0.0 * (PI / 180.0);
     // --- Simulation Inputs ---
-    const int sample_size = 10;
+    const int sample_size = 1000;
     const double U0  = 2000.0e5;
     const double B0  = 0.05e-5;
     const double Usw = 400.0e5;

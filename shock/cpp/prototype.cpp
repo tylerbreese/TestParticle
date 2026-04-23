@@ -1,4 +1,6 @@
 #include <iostream>
+#include <iomanip>
+#include <chrono>
 #include <random> 
 #include <cmath>
 #include <string>
@@ -214,7 +216,6 @@ mat sum_turby(mat X, double T, mat K, mat An, mat Bn) {
     return dB;
 }
 
-
 double boundary(mat U1, mat V, double r) {
 
     double U2 = as_scalar(norm(U1)) / r;
@@ -246,6 +247,20 @@ Displace particle_displace(mat X, mat V, double Rg){
     result.Vdis = Vdis;
     return result;
 };
+
+string get_timestamp_filename(string prefix, string extension) {
+    // 1. Get the current time from the system clock
+    auto now = chrono::system_clock::now();
+    auto in_time_t = chrono::system_clock::to_time_t(now);
+
+    // 2. Format the time into a string buffer
+    stringstream ss;
+    // Format: YearMonthDay_HourMinuteSecond
+    ss << prefix << put_time(localtime(&in_time_t), "%Y-%m-%d_%H-%M-%S") << extension;
+    
+    return ss.str();
+}
+
 // --- Main Program ---
 int main() {
     arma_rng::set_seed_random(); // random numbers
@@ -296,13 +311,24 @@ int main() {
     V.slice(0).col(1) = V0.col(1);
     V.slice(0).col(2) = V0.col(2);
 
-    ofstream sf("splitting_data.csv");
-    sf << "PID,weight,x,y,z,vx,vy,vz" << endl;
+    // --- Generate output files ---
+    string simfile   = get_timestamp_filename("sim_data_", ".csv");
+    string splitinit = get_timestamp_filename("split_init_", ".csv");
+    string splitout  = get_timestamp_filename("split_data_", ".csv");
+
+    ofstream f1(simfile);
+    ofstream f2(splitinit);
+    ofstream f3(splitout);
+    
+    f1 << "PID,x0,xf,E0,Ef" << endl;
+    f2 << "PID,tstep,weight,x,y,z,vx,vy,vz" << endl;
+    f3 << "PID,weight,x0,xf,E0,Ef" << endl;
+    
     // --- Init Shock and Turby
     double vA =  30.0e5; // cm/s
     double Cs = 149.0e5; // cm/s
-    //mat U1 = U0 - Usw;
-    mat U1 = Usw;
+    mat U1 = U0 - Usw; // IP shock use this
+    //mat U1 = Usw; // if doing TS use this
     mat V_A(1,3); //vector alfven 
     V_A.col(0) = vA * cos(th); // follows from B 
     V_A.col(1) = 0.0;
@@ -316,6 +342,11 @@ int main() {
     mat Btrack(T.n_elem,4);
     // --- Integration ---
     for (int i = 0; i < sample_size; i++) {
+
+        const vec cutoff = { 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0, 50.0, 75.0, 100.0 };
+        const double En0 = 0.5 * m * (V(i,0,0)*V(i,0,0) + V(i,1,0)*V(i,1,0) + V(i,2,0)*V(i,2,0));
+        uword thresholds_passed = 0; // track thresholds for splitting
+
         for (int j = 0; j < num_steps; j++){
 
             mat dB = sum_turby(X.slice(j).row(i),T(j),K,An,Bn);
@@ -351,78 +382,189 @@ int main() {
             X.slice(j+1).row(i) = Xnew;
             V.slice(j+1).row(i) = Vnew;
 
-            // --- Splitting ---
-            double En0 = 0.5 * m * ( pow(V(i,0,0),2) + pow(V(i,1,0),2) + pow(V(i,2,0),2) );
-            double Enf = 0.5 * m * ( pow(V(i,0,j),2) + pow(V(i,1,j),2) + pow(V(i,2,j),2) );
+            // --- Splitting --- 
+            double Enf = 0.5 * m * (V(i,0,j)*V(i,0,j) + V(i,1,j)*V(i,1,j) + V(i,2,j)*V(i,2,j));
             double ratio = Enf / En0;
-            vec cutoff = { 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0, 50.0, 75.0, 100.0 };
-            uvec flag = ratio > cutoff;
-            uword num_true = accu(flag);
-            cout << num_true << endl;
-            if (any(flag)) {
-                // Runs if at least one element is 1
-                for (uword ii = 1; ii <= num_true; ++ii) {
-                    auto [Xspl, Vspl] = particle_displace(Xnew, Vnew, Rg);
-                    // displace particle then save phase space coord for re-entry
-                    sf << i << "," << ii << "," 
-                                         << Xspl(0,0) << "," << Xspl(0,1) << "," << Xspl(0,2) << "," 
-                                         << Vnew(0,0) << "," << Vnew(0,1) << ","  << Vnew(0,2) << "\n";
+            // Determine how many total thresholds the particle is currently qualified for
+            uword current_count = accu(ratio > cutoff);
+            if (current_count > thresholds_passed) {
+                uword new_levels = current_count - thresholds_passed;
+                for (uword lev = 0; lev < new_levels; ++lev) {
+                    for (uword ii = 1; ii <= current_count; ++ii) {
+                        auto [Xspl, Vspl] = particle_displace(Xnew, Vnew, Rg);
+                        f2 << i << ","       // Particle ID
+                        << j << ","       // Time Step
+                        << ii << ","      // Split Index
+                        << Xspl(0) << "," << Xspl(1) << "," << Xspl(2) << "," 
+                        << Vnew(0) << "," << Vnew(1) << "," << Vnew(2) << "\n";
+                    }
                 }
-            }
+                thresholds_passed = current_count;
+    }
+
         }
     }
     cout << "all particles tested" << endl;
-    // --- Output ---
-    ofstream ef("distribution_data.csv");
-    ef << "PID,x0,xf,E0,Ef" << endl;
     for (int k = 0; k < sample_size; k++) {
-        ef << k << "," 
+        f1 << k << "," 
                 << X(k,0,0) << ","
                 << X(k,0,num_steps-1) << ","
                 << 0.5 * m * ( pow(V(k,0,0),2) + pow(V(k,1,0),2) + pow(V(k,2,0),2) ) << ","
                 << 0.5 * m * ( pow(V(k,0,num_steps-1),2) + pow(V(k,1,num_steps-1),2) + pow(V(k,2,num_steps-1),2) ) << "\n";
     }
-    int pick = randi(distr_param(0, sample_size-1));
-    ofstream xf("position_data.csv");
-    xf << "Step,X,Y,Z" << endl;
-    for (int i = 0; i < num_steps; i++) {
-        xf << i << "," 
-                << X(pick, 0, i) << "," 
-                << X(pick, 1, i) << "," 
-                << X(pick, 2, i) << "\n"; 
+    cout << "Data saved to sim_data.csv" << endl;
+    
+    // --- Splitting Integration ---
+    cout << "Begin splitting" << endl;
+    mat data;
+    bool success = data.load(splitinit, csv_ascii);
+    int num_rows = data.n_rows;
+    if (success) {
+        cout << "Data loaded successfully!" << endl;
+        for (int ii = 0; ii < num_rows; ii++) {
+
+            mat Xspl = zeros<mat>(num_steps,3);
+            mat Vspl = zeros<mat>(num_steps,3);
+            Xspl.row(0) = data(ii,span(3,5));
+            Vspl.row(0) = data(ii,span(6,8));
+            int tstart = as_scalar(data(ii,1));
+            const double En0 = 0.5 * m * (Vspl(tstart,0)*Vspl(tstart,0) + Vspl(tstart,1)*Vspl(tstart,1) + Vspl(tstart,2)*Vspl(tstart,2));
+            for (int jj = tstart; jj < num_steps; jj++){
+
+                mat Xold = Xspl.row(jj);
+                mat Vold = Vspl.row(jj);         
+
+                mat dB = sum_turby(Xold,T(jj),K,An,Bn);
+                auto [Unow,Bnow] = shock_field(Xold, x0, U1, B0+dB, r, a, b);
+                double x = as_scalar(Xold.col(0));
+                if ( (x-x0) > 250.0*Rg ) {
+                    double P_return = randu();
+                    double P_escape = boundary(U1,Vold,r);
+                    if (P_return < P_escape){ 
+                        cout << "Particle " << ii << " has left the building \n";
+                        cout << "Particle " << ii << " lasted " << jj-data(ii,1) << " steps \n";
+                        rowvec last_X = Xspl.row(jj);
+                        rowvec last_V = Vspl.row(jj);
+                        // Fill all remaining slices from ii+1 to the end
+                        for (int s = jj + 1; s < X.n_slices; s++) {
+                            Xspl.row(s) = last_X;
+                            Vspl.row(s) = last_V;
+                        }
+                    break;
+                    }
+                    auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
+                    Vold = Vdis; // "scatter" at the boundary
+                }
+                auto [Xnew, Vnew] = integrate_boris(Xold, Vold, Unow, Bnow, dt);
+                Xspl.row(jj+1).col(0) = Xnew(0,0);
+                Xspl.row(jj+1).col(1) = Xnew(0,1);
+                Xspl.row(jj+1).col(2) = Xnew(0,2);
+                Vspl.row(jj+1).col(0) = Vnew(0,0);
+                Vspl.row(jj+1).col(1) = Vnew(0,1);
+                Vspl.row(jj+1).col(2) = Vnew(0,2);
+            }
+            //cout << "Shape: " << Vspl.n_rows << "x" << Vspl.n_cols << std::endl;
+            //cout << "Numsteps " << num_steps << endl;
+            double Enf = 0.5 * m * (Vspl(num_steps-1,0)*Vspl(num_steps-1,0) + Vspl(num_steps-1,1)*Vspl(num_steps-1,1) + Vspl(num_steps-1,2)*Vspl(num_steps-1,2));
+            // f3 << "PID,weight,x0,xf,E0,Ef" << endl;
+            f3 << data(ii,0) << "," << data(ii,2) << ","
+                             << data(ii,3) << "," << Xspl(num_steps-1,0) << ","
+                             << En0 << "," << Enf << "\n";
+        }
     }
-    xf.close();
-    ofstream vf("velocity_data.csv");
-    vf << "Step,Vx,Vy,Vz" << endl;
-    for (int i = 0; i < num_steps; i++) {
-        vf << i << "," 
-                << V(pick, 0, i) << "," 
-                << V(pick, 1, i) << "," 
-                << V(pick, 2, i) << "\n"; 
-    }
-    vf.close();
-    ofstream bf("magfield_data.csv");
-    bf << "Step,Bx,By,Bz,Bm" << endl;
-    for (int i = 0; i < num_steps; i++) {
-        bf << i << "," 
-                << Btrack(i, 0) << "," 
-                << Btrack(i, 1) << ","
-                << Btrack(i, 2) << "," 
-                << Btrack(i, 3) << "\n"; 
-    }
-    bf.close();
-    cout << "Data saved to simulation_data.csv" << endl;
+    cout << "Data saved to split_data.csv" << endl;
+    f1.close();
+    f2.close();
+    f3.close();
+    return 0;
+}
+
+// run cmd
+//g++ -std=c++17 prototype.cpp ip_snowplow.cpp -o prototype.exe -larmadillo 
 
 
+// old output format
+// good for debugging
+    // --- Output ---
+    // ofstream ef("distribution_data.csv");
+    // ef << "PID,x0,xf,E0,Ef" << endl;
+    // for (int k = 0; k < sample_size; k++) {
+    //     ef << k << "," 
+    //             << X(k,0,0) << ","
+    //             << X(k,0,num_steps-1) << ","
+    //             << 0.5 * m * ( pow(V(k,0,0),2) + pow(V(k,1,0),2) + pow(V(k,2,0),2) ) << ","
+    //             << 0.5 * m * ( pow(V(k,0,num_steps-1),2) + pow(V(k,1,num_steps-1),2) + pow(V(k,2,num_steps-1),2) ) << "\n";
+    // }
+    // int pick = randi(distr_param(0, sample_size-1));
+    // ofstream xf("position_data.csv");
+    // xf << "Step,X,Y,Z" << endl;
+    // for (int i = 0; i < num_steps; i++) {
+    //     xf << i << "," 
+    //             << X(pick, 0, i) << "," 
+    //             << X(pick, 1, i) << "," 
+    //             << X(pick, 2, i) << "\n"; 
+    // }
+    // xf.close();
+    // ofstream vf("velocity_data.csv");
+    // vf << "Step,Vx,Vy,Vz" << endl;
+    // for (int i = 0; i < num_steps; i++) {
+    //     vf << i << "," 
+    //             << V(pick, 0, i) << "," 
+    //             << V(pick, 1, i) << "," 
+    //             << V(pick, 2, i) << "\n"; 
+    // }
+    // vf.close();
+    // ofstream bf("magfield_data.csv");
+    // bf << "Step,Bx,By,Bz,Bm" << endl;
+    // for (int i = 0; i < num_steps; i++) {
+    //     bf << i << "," 
+    //             << Btrack(i, 0) << "," 
+    //             << Btrack(i, 1) << ","
+    //             << Btrack(i, 2) << "," 
+    //             << Btrack(i, 3) << "\n"; 
+    // }
+    // bf.close();    // --- Output ---
+    // ofstream ef("distribution_data.csv");
+    // ef << "PID,x0,xf,E0,Ef" << endl;
+    // for (int k = 0; k < sample_size; k++) {
+    //     ef << k << "," 
+    //             << X(k,0,0) << ","
+    //             << X(k,0,num_steps-1) << ","
+    //             << 0.5 * m * ( pow(V(k,0,0),2) + pow(V(k,1,0),2) + pow(V(k,2,0),2) ) << ","
+    //             << 0.5 * m * ( pow(V(k,0,num_steps-1),2) + pow(V(k,1,num_steps-1),2) + pow(V(k,2,num_steps-1),2) ) << "\n";
+    // }
+    // int pick = randi(distr_param(0, sample_size-1));
+    // ofstream xf("position_data.csv");
+    // xf << "Step,X,Y,Z" << endl;
+    // for (int i = 0; i < num_steps; i++) {
+    //     xf << i << "," 
+    //             << X(pick, 0, i) << "," 
+    //             << X(pick, 1, i) << "," 
+    //             << X(pick, 2, i) << "\n"; 
+    // }
+    // xf.close();
+    // ofstream vf("velocity_data.csv");
+    // vf << "Step,Vx,Vy,Vz" << endl;
+    // for (int i = 0; i < num_steps; i++) {
+    //     vf << i << "," 
+    //             << V(pick, 0, i) << "," 
+    //             << V(pick, 1, i) << "," 
+    //             << V(pick, 2, i) << "\n"; 
+    // }
+    // vf.close();
+    // ofstream bf("magfield_data.csv");
+    // bf << "Step,Bx,By,Bz,Bm" << endl;
+    // for (int i = 0; i < num_steps; i++) {
+    //     bf << i << "," 
+    //             << Btrack(i, 0) << "," 
+    //             << Btrack(i, 1) << ","
+    //             << Btrack(i, 2) << "," 
+    //             << Btrack(i, 3) << "\n"; 
+    // }
+    // bf.close();
     // // Print the first 10 results for shock speed and Mach numbers
     // cout << "Step | Shock Speed (U) | Sound Speed (Cs) | Alfven Speed (vA)" << endl;
     // for (uword i = 0; i < 10 && i < U.n_elem; ++i) {
     //     printf("%4d | %15.2f | %15.2f | %15.2f\n", 
     //             (int)i, U(i), Cs(i), vA(i));
     // }
-
-    return 0;
-}
-
-// run cmd
-//g++ -std=c++17 prototype.cpp ip_snowplow.cpp -o prototype.exe -larmadillo 
