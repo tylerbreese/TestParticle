@@ -51,34 +51,64 @@ Boris integrate_boris(mat& Xn, mat& Vn, mat& U, mat& B, double dt) {
 
     mat E(1,3); // electric field
     mat X(1,3);
+    mat Xm(1,3);
+
     mat V(1,3);
     mat Vp(1,3);
-    mat Vq(1,3);
+    mat Vm(1,3);
 
+    mat Pn(1,3);
+    mat Pm(1,3);
+    mat Pp(1,3);
+    mat Pr(1,3);
+    mat P(1,3);
+
+    // --- Electric Field
     E.col(0) = (-1/c) * (U.col(1)*B.col(2) - U.col(2)*B.col(1));
     E.col(1) = (-1/c) * (U.col(2)*B.col(0) - U.col(0)*B.col(2));
     E.col(2) = (-1/c) * (U.col(0)*B.col(1) - U.col(1)*B.col(0)); 
 
-    mat u = Vn;
-    mat R = (q/m) * E * (dt/2);
-    mat T = (q/(m*c)) * B * (dt/2);
-    mat S = (2.0 * T) / (1.0 + pow(norm(T),2));
+    // --- Step one ---
+    double beta2  = (Vn(0,0)*Vn(0,0) + Vn(0,1)*Vn(0,1) + Vn(0,2)*Vn(0,2)) / (c*c);
+    double gamma0 = sqrt(1/(1 - beta2));
 
-    u = u + R; //first step
-    //twirling
-    Vp.col(0) = u.col(0) + ( u.col(1)*T.col(2) - u.col(2)*T.col(1) );
-    Vp.col(1) = u.col(1) + ( u.col(2)*T.col(0) - u.col(0)*T.col(2) );
-    Vp.col(2) = u.col(2) + ( u.col(0)*T.col(1) - u.col(1)*T.col(0) );
-    //twirling
-    Vq.col(0) = u.col(0) + ( Vp.col(1)*S.col(2) - Vp.col(2)*S.col(1) );
-    Vq.col(1) = u.col(1) + ( Vp.col(2)*S.col(0) - Vp.col(0)*S.col(2) );
-    Vq.col(2) = u.col(2) + ( Vp.col(0)*S.col(1) - Vp.col(1)*S.col(0) );
+    Pn.col(0) = gamma0 * m * Vn.col(0);
+    Pn.col(1) = gamma0 * m * Vn.col(1);
+    Pn.col(2) = gamma0 * m * Vn.col(2);
 
-    V = Vq + R; // next half step
+    Pm.col(0) = Pn.col(0) + ((q*dt)/2) * E.col(0);
+    Pm.col(1) = Pn.col(1) + ((q*dt)/2) * E.col(1);
+    Pm.col(2) = Pn.col(2) + ((q*dt)/2) * E.col(2);
 
-    X.col(0) = Xn.col(0) + V.col(0) * dt;
-    X.col(1) = Xn.col(1) + V.col(1) * dt;
-    X.col(2) = Xn.col(2) + V.col(2) * dt;
+    double gammam = sqrt( 1 + ( Pm(0,0)*Pm(0,0) + Pm(0,1)*Pm(0,1) + Pm(0,2)*Pm(0,2) )/(m*m*c*c) );
+    Vm.col(0) = Pm.col(0) / (gammam * m);
+    Vm.col(1) = Pm.col(1) / (gammam * m);
+    Vm.col(2) = Pm.col(2) / (gammam * m);
+    Xm.col(0) = Xn.col(0) + Vm.col(0) * (dt/2);
+    Xm.col(1) = Xn.col(1) + Vm.col(1) * (dt/2);
+    Xm.col(2) = Xn.col(2) + Vm.col(2) * (dt/2);
+    // half step forward
+
+    // --- Step two ---
+    mat Z = ( (q*dt)/(2*m*c*gammam) ) * B;
+    mat S = (2.0 * Z) / (1.0 + pow(norm(Z),2));
+    Pp = Pm + cross(Pm,Z);
+    Pr = Pm + cross(Pp,S);
+
+    // --- Step Three ---
+    P.col(0) = Pr.col(0) + ((q*dt)/2) * E.col(0);
+    P.col(1) = Pr.col(1) + ((q*dt)/2) * E.col(1);
+    P.col(2) = Pr.col(2) + ((q*dt)/2) * E.col(2);
+
+    double gammap = sqrt( 1 + ( P(0,0)*P(0,0) + P(0,1)*P(0,1) + P(0,2)*P(0,2) ) /(m*m*c*c) );
+    V.col(0) = P.col(0) / (gammap * m);
+    V.col(1) = P.col(1) / (gammap * m);
+    V.col(2) = P.col(2) / (gammap * m);
+    X.col(0) = Xm.col(0) + V.col(0) * (dt/2);
+    X.col(1) = Xm.col(1) + V.col(1) * (dt/2);
+    X.col(2) = Xm.col(2) + V.col(2) * (dt/2);
+    // full step forward
+
     Boris result;
     result.Xnew = X;
     result.Vnew = V;
@@ -294,8 +324,8 @@ int main() {
     vec xinit = ones<vec>(sample_size) * (200.0 * Rg); // drop in particles upstream in fixed plane'
     // vec yinit = zeros<vec>(sample_size);
     // vec zinit = zeros<vec>(sample_size);
-    vec yinit = (2.0 * randu<vec>(sample_size) - 1.0) * (100.0 * Rg);
-    vec zinit = (2.0 * randu<vec>(sample_size) - 1.0) * (100.0 * Rg);
+    vec yinit = (2.0 * randu<vec>(sample_size) - 1.0) * (500.0 * Rg);
+    vec zinit = (2.0 * randu<vec>(sample_size) - 1.0) * (500.0 * Rg);
 
     cube X = zeros<cube>(sample_size, 3, num_steps);
     cube V = zeros<cube>(sample_size,3,num_steps);
@@ -359,7 +389,7 @@ int main() {
             
             // --- Boundary Conditions ---
             double x = as_scalar(X.slice(j).row(i).col(0));
-            if ( (x-x0) > 250.0*Rg ) {
+            if ( (x-x0) < -250.0*Rg ) {
                 double P_return = randu();
                 double P_escape = boundary(U1,V.slice(j).row(i),r);
                 if (P_return < P_escape){ 
@@ -377,7 +407,7 @@ int main() {
                 auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
                 Vold = Vdis; // "scatter" at the boundary
             }
-            if ( (x-x0) < -250.0*Rg ) {
+            if ( (x-x0) > 250.0*Rg ) {
                 auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
                 Xold.col(0) = x0;
                 Xold.col(1) = Xdis(1);
@@ -415,13 +445,57 @@ int main() {
     }
     cout << "all particles tested" << endl;
 
+    // for (int k = 0; k < sample_size; k++) {
+    //     double beta2 = (V(k,0,num_steps-1)*V(k,0,num_steps-1) + V(k,1,num_steps-1)*V(k,1,num_steps-1) + V(k,2,num_steps-1)*V(k,2,num_steps-1)) / (c*c);
+    //     double gamma = sqrt(1/(1 - beta2));
+    //     double Enf = gamma * 0.512; // energy in MeV
+    //     f1 << k << "," 
+    //             << X(k,0,0) << ","
+    //             << X(k,0,num_steps-1) << ","
+    //             << En << ","
+    //             << Enf << "\n";
+    // }
+    ofstream ef("distribution_data.csv");
+    ef << "PID,x0,xf,E0,Ef" << endl;
     for (int k = 0; k < sample_size; k++) {
-        f1 << k << "," 
+        double beta2 = (V(k,0,num_steps-1)*V(k,0,num_steps-1) + V(k,1,num_steps-1)*V(k,1,num_steps-1) + V(k,2,num_steps-1)*V(k,2,num_steps-1)) / (c*c);
+        double gamma = sqrt(1/(1 - beta2));
+        double Enf = gamma * 0.512; // energy in MeV
+        ef << k << "," 
                 << X(k,0,0) << ","
                 << X(k,0,num_steps-1) << ","
-                << 0.5 * m * ( pow(V(k,0,0),2) + pow(V(k,1,0),2) + pow(V(k,2,0),2) ) << ","
-                << 0.5 * m * ( pow(V(k,0,num_steps-1),2) + pow(V(k,1,num_steps-1),2) + pow(V(k,2,num_steps-1),2) ) << "\n";
+                << En << ","
+                << Enf << "\n";
     }
+    int pick = randi(distr_param(0, sample_size-1));
+    ofstream xf("position_data.csv");
+    xf << "Step,X,Y,Z" << endl;
+    for (int i = 0; i < num_steps; i++) {
+        xf << i << "," 
+                << X(pick, 0, i) << "," 
+                << X(pick, 1, i) << "," 
+                << X(pick, 2, i) << "\n"; 
+    }
+    xf.close();
+    ofstream vf("velocity_data.csv");
+    vf << "Step,Vx,Vy,Vz" << endl;
+    for (int i = 0; i < num_steps; i++) {
+        vf << i << "," 
+                << V(pick, 0, i) << "," 
+                << V(pick, 1, i) << "," 
+                << V(pick, 2, i) << "\n"; 
+    }
+    vf.close();
+    ofstream bf("magfield_data.csv");
+    bf << "Step,Bx,By,Bz,Bm" << endl;
+    for (int i = 0; i < num_steps; i++) {
+        bf << i << "," 
+                << Btrack(i, 0) << "," 
+                << Btrack(i, 1) << ","
+                << Btrack(i, 2) << "," 
+                << Btrack(i, 3) << "\n"; 
+    }
+    bf.close(); 
     cout << "Data saved to sim_data.csv" << endl;
     
     // --- Splitting Integration ---
@@ -438,7 +512,7 @@ int main() {
             Xspl.row(0) = data(ii,span(3,5));
             Vspl.row(0) = data(ii,span(6,8));
             int tstart = as_scalar(data(ii,1));
-            const double En0 = 0.5 * m * (Vspl(tstart,0)*Vspl(tstart,0) + Vspl(tstart,1)*Vspl(tstart,1) + Vspl(tstart,2)*Vspl(tstart,2));
+            const double En0 = En;
             for (int jj = tstart; jj < num_steps; jj++){
 
                 mat Xold = Xspl.row(jj);
@@ -473,10 +547,9 @@ int main() {
                 Vspl.row(jj+1).col(1) = Vnew(0,1);
                 Vspl.row(jj+1).col(2) = Vnew(0,2);
             }
-            //cout << "Shape: " << Vspl.n_rows << "x" << Vspl.n_cols << std::endl;
-            //cout << "Numsteps " << num_steps << endl;
-            double Enf = 0.5 * m * (Vspl(num_steps-1,0)*Vspl(num_steps-1,0) + Vspl(num_steps-1,1)*Vspl(num_steps-1,1) + Vspl(num_steps-1,2)*Vspl(num_steps-1,2));
-            // f3 << "PID,weight,x0,xf,E0,Ef" << endl;
+            double beta2 = (Vspl(num_steps-1,0)*Vspl(num_steps-1,0) + Vspl(num_steps-1,1)*Vspl(num_steps-1,1) + Vspl(num_steps-1,2)*Vspl(num_steps-1,2) ) / (c*c);
+            double gamma = sqrt(1/(1 - beta2));
+            double Enf = gamma * 0.512; // energy in MeV
             f3 << data(ii,0) << "," << data(ii,2) << ","
                              << data(ii,3) << "," << Xspl(num_steps-1,0) << ","
                              << En0 << "," << Enf << "\n";
@@ -533,7 +606,8 @@ int main() {
     //             << Btrack(i, 2) << "," 
     //             << Btrack(i, 3) << "\n"; 
     // }
-    // bf.close();    // --- Output ---
+    // bf.close(); 
+    // --- Output ---
     // ofstream ef("distribution_data.csv");
     // ef << "PID,x0,xf,E0,Ef" << endl;
     // for (int k = 0; k < sample_size; k++) {

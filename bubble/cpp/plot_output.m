@@ -1,15 +1,16 @@
-A = readtable("sim_data_2026-04-22_20-48-44");
+A = readtable("sim_data_2026-04-22_23-06-25.csv");
 sim = table2array(A);
-B = readtable("split_data_2026-04-22_20-48-44.csv");
+B = readtable("split_data_2026-04-22_23-06-25.csv");
 split = table2array(B);
 
 x0 = sim(:,2) ./ 1e5;
 xf = sim(:,3) ./ 1e5;
-En0 = sim(:,4) ./ 1.6e-9; 
-En1 = sim(:,5) ./ 1.6e-9;
-Ens = split(:,6) ./ 1.6e-9;
-bins = logspace(-1,4,25);
+En0 = sim(:,4); 
+En1 = sim(:,5);
+Ens = split(:,6);
+
 %%
+bins = logspace(0,1,10);
 n0 = histcounts(En0,bins);
 n1 = histcounts(En1,bins);
 ns = histcounts(Ens,bins);

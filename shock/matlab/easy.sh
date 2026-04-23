@@ -10,7 +10,7 @@ PID_D=$!
 PID_E=$!
 wait  $PID_A $PID_B $PID_C $PID_D $PID_E
 
-./batch_proton.sh proton/input6.in &
+./batch_proton.sh proton/input6.in &ls
 PID_F=$!
 ./batch_proton.sh proton/input7.in &
 PID_G=$! 

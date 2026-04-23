@@ -17,13 +17,13 @@ namespace inputs {
     const double PI = 3.14159265358979323846;
 
     // --- Shock Inputs ---
-    const double th  = 60.0 * (PI / 180.0); 
+    const double th  = 90.0 * (PI / 180.0); 
     const double del = 0.0 * (PI / 180.0);
     // --- Simulation Inputs ---
-    const int sample_size = 1000;
-    const double En  = 1.0; // initial energy in MeV;
+    const int sample_size = 100;
+    const double En  = 3.0; // initial energy in MeV;
     const double U0  = 2000.0e5;
-    const double B0  = 0.5e-5;
+    const double B0  = 0.5;
     const double cycles = 10000.0;
     const double var = 0.5;
     inline mat init_U0() {

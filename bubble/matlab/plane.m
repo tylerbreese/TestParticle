@@ -168,7 +168,7 @@ function [X,p] = integrate_boris(Xn,pn,U,B,dt,K)
     Pq(:,2) = Pm(:,2) + ( Pp(:,3).*S(:,1) - Pp(:,1).*S(:,3) );
     Pq(:,3) = Pm(:,3) + ( Pp(:,1).*S(:,2) - Pp(:,2).*S(:,1) );
 
-    p       = Pq + R;
+    p = Pq + R;
     
     X(:,1) = Xn(:,1) + (p(:,1)./(gamma.*m)) .* dt;
     X(:,2) = Xn(:,2) + (p(:,2)./(gamma.*m)) .* dt;
