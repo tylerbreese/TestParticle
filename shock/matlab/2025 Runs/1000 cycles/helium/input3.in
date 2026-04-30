@@ -1,9 +1,0 @@
-run_name = three
-sample_size = 100000
-Cycles = 1000
-Th = 1.5708
-Del = 0.0
-U1 = 400e5
-B1 = 0.05e-5
-var = 0.5
-

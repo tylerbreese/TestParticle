@@ -27,9 +27,9 @@ mat sampling(const int& sample_size, const double& En) {
     vec u   = pdfrnd(linspace<vec>(-1, 1, 2001), ones<vec>(2001), sample_size);
     vec phi = pdfrnd(linspace<vec>(0, 6.28, 2001), ones<vec>(2001), sample_size);
 
-    const double mc2 = 0.512; // electron invariant mass in MeV
+    const double mc2 = 0.511; // electron invariant mass in MeV
     const double gamma = En / mc2; // MeV
-    double v0 = 3e10 * sqrt( 1 - (1/gamma) );
+    double v0 = 3e10 * sqrt( 1 - (1/(gamma*gamma)) );
 
     vec vx = v0 * sqrt(1.0 - pow(u, 2)) % cos(phi);
     vec vy = v0 * sqrt(1.0 - pow(u, 2)) % sin(phi);
@@ -339,9 +339,9 @@ int main() {
     V.slice(0).col(2) = V0.col(2);
 
     // --- Generate output files ---
-    string simfile   = get_timestamp_filename("sim_data_", ".csv");
-    string splitinit = get_timestamp_filename("split_init_", ".csv");
-    string splitout  = get_timestamp_filename("split_data_", ".csv");
+    string simfile   = get_timestamp_filename("output/sim_data_", ".csv");
+    string splitinit = get_timestamp_filename("output/split_init_", ".csv");
+    string splitout  = get_timestamp_filename("output/split_data_", ".csv");
 
     ofstream f1(simfile);
     ofstream f2(splitinit);
@@ -372,7 +372,7 @@ int main() {
     //cout << "size of X " << X.n_rows << " x " << X.n_cols << " x " << X.n_slices << endl;
     for (int i = 0; i < sample_size; i++) {
 
-        const vec cutoff = { 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0, 50.0, 75.0, 100.0 };
+        const vec cutoff = { 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0, 7.0, 10.0  };
         const double En0 = En; // initial energy predefined
         uword thresholds_passed = 0; // track thresholds for splitting
 
@@ -389,11 +389,11 @@ int main() {
             
             // --- Boundary Conditions ---
             double x = as_scalar(X.slice(j).row(i).col(0));
-            if ( (x-x0) < -250.0*Rg ) {
+            if ( (x-x0) > 1.0e5 ) {
                 double P_return = randu();
                 double P_escape = boundary(U1,V.slice(j).row(i),r);
                 if (P_return < P_escape){ 
-                    cout << "Particle " << i << " has left the building \n";
+                    cout << "Particle " << i << " has left out the frontdoor \n";
                     cout << "Particle " << i << " lasted " << j << " steps \n";
                     rowvec last_X = X.slice(j).row(i);
                     rowvec last_V = V.slice(j).row(i);
@@ -407,12 +407,22 @@ int main() {
                 auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
                 Vold = Vdis; // "scatter" at the boundary
             }
-            if ( (x-x0) > 250.0*Rg ) {
-                auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
-                Xold.col(0) = x0;
-                Xold.col(1) = Xdis(1);
-                Xold.col(2) = Xdis(2);
-                Vold = Vdis; // "scatter" at the boundary
+            if ( (x-x0) < -10.0e5 ) {
+                cout << "Particle " << i << " has left out the backdoor \n";
+                cout << "Particle " << i << " lasted " << j << " steps \n";
+                rowvec last_X = X.slice(j).row(i);
+                rowvec last_V = V.slice(j).row(i);
+                // Fill all remaining slices from ii+1 to the end
+                for (int s = j + 1; s < X.n_slices; s++) {
+                    X.slice(s).row(i) = last_X;
+                    V.slice(s).row(i) = last_V;
+                }
+                break;
+                // auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
+                // Xold.col(0) = x0;
+                // Xold.col(1) = Xdis(1);
+                // Xold.col(2) = Xdis(2);
+                // Vold = Vdis; // "scatter" at the boundary
             }
 
             auto [Xnew, Vnew] = integrate_boris(Xold, Vold, Unow, Bnow, dt);
@@ -422,7 +432,7 @@ int main() {
             // --- Splitting --- 
             double beta2 = (Vnew(0,0)*Vnew(0,0) + Vnew(0,1)*Vnew(0,1) + Vnew(0,2)*Vnew(0,2)) / (c*c);
             double gamma = sqrt(1/(1 - beta2));
-            double Enf = gamma * 0.512; // energy in MeV
+            double Enf = (gamma) * 0.511; // energy in MeV
             double ratio = Enf / En0;
             // Determine how many total thresholds the particle is currently qualified for
             uword current_count = accu(ratio > cutoff);
@@ -444,23 +454,25 @@ int main() {
         }
     }
     cout << "all particles tested" << endl;
-
-    // for (int k = 0; k < sample_size; k++) {
-    //     double beta2 = (V(k,0,num_steps-1)*V(k,0,num_steps-1) + V(k,1,num_steps-1)*V(k,1,num_steps-1) + V(k,2,num_steps-1)*V(k,2,num_steps-1)) / (c*c);
-    //     double gamma = sqrt(1/(1 - beta2));
-    //     double Enf = gamma * 0.512; // energy in MeV
-    //     f1 << k << "," 
-    //             << X(k,0,0) << ","
-    //             << X(k,0,num_steps-1) << ","
-    //             << En << ","
-    //             << Enf << "\n";
-    // }
-    ofstream ef("distribution_data.csv");
+    // --- Debugging Output ---
+    for (int k = 0; k < sample_size; k++) {
+        double beta2 = (V(k,0,num_steps-1)*V(k,0,num_steps-1) + V(k,1,num_steps-1)*V(k,1,num_steps-1) + V(k,2,num_steps-1)*V(k,2,num_steps-1)) / (c*c);
+        double gamma = sqrt(1/(1 - beta2));
+        double Enf = (gamma) * 0.511; // energy in MeV
+        f1 << k << "," 
+                << X(k,0,0) << ","
+                << X(k,0,num_steps-1) << ","
+                << En << ","
+                << Enf << "\n";
+    }
+    f1.close();
+    f2.close();
+    ofstream ef("output/distribution_data.csv");
     ef << "PID,x0,xf,E0,Ef" << endl;
     for (int k = 0; k < sample_size; k++) {
         double beta2 = (V(k,0,num_steps-1)*V(k,0,num_steps-1) + V(k,1,num_steps-1)*V(k,1,num_steps-1) + V(k,2,num_steps-1)*V(k,2,num_steps-1)) / (c*c);
         double gamma = sqrt(1/(1 - beta2));
-        double Enf = gamma * 0.512; // energy in MeV
+        double Enf = (gamma) * 0.511; // energy in MeV
         ef << k << "," 
                 << X(k,0,0) << ","
                 << X(k,0,num_steps-1) << ","
@@ -468,7 +480,7 @@ int main() {
                 << Enf << "\n";
     }
     int pick = randi(distr_param(0, sample_size-1));
-    ofstream xf("position_data.csv");
+    ofstream xf("output/position_data.csv");
     xf << "Step,X,Y,Z" << endl;
     for (int i = 0; i < num_steps; i++) {
         xf << i << "," 
@@ -477,7 +489,7 @@ int main() {
                 << X(pick, 2, i) << "\n"; 
     }
     xf.close();
-    ofstream vf("velocity_data.csv");
+    ofstream vf("output/velocity_data.csv");
     vf << "Step,Vx,Vy,Vz" << endl;
     for (int i = 0; i < num_steps; i++) {
         vf << i << "," 
@@ -486,7 +498,7 @@ int main() {
                 << V(pick, 2, i) << "\n"; 
     }
     vf.close();
-    ofstream bf("magfield_data.csv");
+    ofstream bf("output/magfield_data.csv");
     bf << "Step,Bx,By,Bz,Bm" << endl;
     for (int i = 0; i < num_steps; i++) {
         bf << i << "," 
@@ -513,7 +525,8 @@ int main() {
             Vspl.row(0) = data(ii,span(6,8));
             int tstart = as_scalar(data(ii,1));
             const double En0 = En;
-            for (int jj = tstart; jj < num_steps; jj++){
+            cout << "Begin split particle " << ii << endl;
+            for (int jj = tstart; jj < num_steps-1; jj++){
 
                 mat Xold = Xspl.row(jj);
                 mat Vold = Vspl.row(jj);         
@@ -521,7 +534,7 @@ int main() {
                 mat dB = sum_turby(Xold,T(jj),K,An,Bn);
                 auto [Unow,Bnow] = shock_field(Xold, x0, U1, B0+dB, r, a, b);
                 double x = as_scalar(Xold.col(0));
-                if ( (x-x0) > 250.0*Rg ) {
+                if ( (x-x0) > 1.0e5 ) {
                     double P_return = randu();
                     double P_escape = boundary(U1,Vold,r);
                     if (P_return < P_escape){ 
@@ -539,26 +552,33 @@ int main() {
                     auto [Xdis, Vdis] = particle_displace(Xold, Vold, Rg);
                     Vold = Vdis; // "scatter" at the boundary
                 }
-                auto [Xnew, Vnew] = integrate_boris(Xold, Vold, Unow, Bnow, dt);
-                Xspl.row(jj+1).col(0) = Xnew(0,0);
-                Xspl.row(jj+1).col(1) = Xnew(0,1);
-                Xspl.row(jj+1).col(2) = Xnew(0,2);
-                Vspl.row(jj+1).col(0) = Vnew(0,0);
-                Vspl.row(jj+1).col(1) = Vnew(0,1);
-                Vspl.row(jj+1).col(2) = Vnew(0,2);
+                if ( (x-x0) < -10.0e5 ) {
+                    cout << "Particle " << ii << " has left the building \n";
+                    cout << "Particle " << ii << " lasted " << jj-data(ii,1) << " steps \n";
+                    rowvec last_X = Xspl.row(jj);
+                    rowvec last_V = Vspl.row(jj);
+                    // Fill all remaining slices from ii+1 to the end
+                    for (int s = jj + 1; s < X.n_slices; s++) {
+                        Xspl.row(s) = last_X;
+                        Vspl.row(s) = last_V;
+                    }
+                break;
             }
-            double beta2 = (Vspl(num_steps-1,0)*Vspl(num_steps-1,0) + Vspl(num_steps-1,1)*Vspl(num_steps-1,1) + Vspl(num_steps-1,2)*Vspl(num_steps-1,2) ) / (c*c);
+                auto [Xnew, Vnew] = integrate_boris(Xold, Vold, Unow, Bnow, dt);
+                Xspl.row(jj+1) = Xnew;
+                Vspl.row(jj+1) = Vnew;
+            }
+            double beta2 = (Vspl(num_steps-2,0)*Vspl(num_steps-2,0) + Vspl(num_steps-2,1)*Vspl(num_steps-2,1) + Vspl(num_steps-2,2)*Vspl(num_steps-2,2) ) / (c*c);
             double gamma = sqrt(1/(1 - beta2));
-            double Enf = gamma * 0.512; // energy in MeV
+            double Enf = (gamma) * 0.511; // energy in MeV
             f3 << data(ii,0) << "," << data(ii,2) << ","
                              << data(ii,3) << "," << Xspl(num_steps-1,0) << ","
                              << En0 << "," << Enf << "\n";
         }
     }
-    cout << "Data saved to split_data.csv" << endl;
-    f1.close();
-    f2.close();
     f3.close();
+    cout << "Data saved to split_data.csv" << endl;
+
     return 0;
 }
 

@@ -17,7 +17,7 @@ namespace inputs {
     const double PI = 3.14159265358979323846;
 
     // --- Shock Inputs ---
-    const double th  = 90.0 * (PI / 180.0); 
+    const double th  = 0.0 * (PI / 180.0); 
     const double del = 0.0 * (PI / 180.0);
     // --- Simulation Inputs ---
     const int sample_size = 100;

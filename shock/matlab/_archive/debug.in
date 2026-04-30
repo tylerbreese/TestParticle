@@ -1,8 +1,0 @@
-run_name = debug
-sample_size = 1000
-Cycles = 100
-r = 4
-Th = 1.5708
-Del = 0.0
-U1 = 400e5
-B1 = 0.05e-5
