@@ -1,6 +1,6 @@
-A = readtable("output/sim_data_2026-04-23_14-53-06.csv");
+A = readtable("output/sim_data_2026-05-03_12-13-07.csv");
 sim = table2array(A);
-B = readtable("output/split_data_2026-04-23_14-53-06.csv");
+B = readtable("output/sim_data_2026-05-03_12-13-07.csv");
 split = table2array(B);
 
 x0 = sim(:,2) ./ 1e5;

@@ -36,7 +36,7 @@ namespace inputs {
     // Gyrofrequency
     //inline double get_B1() { return as_scalar(norm(init_B0(), 2)); }
     inline double get_B1() { return B0; }
-    inline double get_Om() { return (abs(q) * get_B1()) / (m * c); }
+    inline double get_Om() { return (std::abs(q) * get_B1()) / (m * c); }
     inline double get_Rg() { return U0 / get_Om(); }
 }
 

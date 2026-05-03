@@ -584,6 +584,8 @@ int main() {
 
 // run cmd
 //g++ -std=c++17 prototype.cpp -o prototype.exe -larmadillo 
+//mpicxx prototype.cpp -o prototype.exe
+//mpirun -np 8 ./prototype.exe
 
 
 // old output format
