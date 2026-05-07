@@ -20,11 +20,11 @@ namespace inputs {
     const double th  = 0.0 * (PI / 180.0); 
     const double del = 0.0 * (PI / 180.0);
     // --- Simulation Inputs ---
-    const int sample_size = 100;
+    const int sample_size = 25000;
     const double En  = 3.0; // initial energy in MeV;
     const double U0  = 2000.0e5;
     const double B0  = 0.5;
-    const double cycles = 10000.0;
+    const double cycles = 50000.0;
     const double var = 0.5;
     inline mat init_U0() {
         return {U0 * cos(del), 0.0, U0 * sin(del)};
