@@ -203,9 +203,21 @@ TurbyInit init_turby(double Lmin, double Lmax, int N, double s2, mat U0, mat vA)
     
     return result;
 }
-mat sum_turby(mat X, double T, mat K, mat An, mat Bn) {
+mat sum_turby(mat X, double T, mat K, mat An, mat Bn, mat U1, double r) {
+    
+    double U = as_scalar(norm(U1));
+    double xx = as_scalar(X.col(0));
 
-    vec arg = (K.col(0) * X(0) + K.col(1) * X(1) + K.col(2) * X(2)) + K.col(4);
+    vec arg; 
+    
+    if ( xx > 0.0 ) {
+        arg = (K.col(0) * (r*X(0) - U1(0)*T)  + K.col(1) * X(1) + K.col(2) * X(2)) + K.col(4);
+        //cout << (r*X(0) - U*T) << endl;
+    }
+    else {
+        arg = (K.col(0) * (X(0)) + K.col(1) * X(1) + K.col(2) * X(2)) + K.col(4);
+        //cout << (X(0) - U*T) << endl;
+    }
     //vec arg = sign * (K.col(0) * X(0) + K.col(1) * X(1) + K.col(2) * X(2)) + K.col(3) * T + K.col(4);
     
     mat dB(1,3);
@@ -327,8 +339,8 @@ int main() {
     // --- Init Shock and Turby
     double vA =  30.0e5; // cm/s
     double Cs = 149.0e5; // cm/s
-    mat U1 = U0 - Usw; // IP shock use this
-    //mat U1 = Usw; // if doing TS use this
+    // mat U1 = U0 - Usw; // IP shock use this
+    mat U1 = Usw; // if doing TS use this
     mat V_A(1,3); //vector alfven 
     V_A.col(0) = vA * cos(th); // follows from B 
     V_A.col(1) = 0.0;
@@ -349,7 +361,7 @@ int main() {
 
         for (int j = 0; j < num_steps; j++){
 
-            mat dB = sum_turby(X.slice(j).row(i),T(j),K,An,Bn);
+            mat dB = sum_turby(X.slice(j).row(i),T(j),K,An,Bn,U1,r);
             auto [Unow,Bnow] = shock_field(X.slice(j).row(i), x0, U1, B0+dB, r, a, b);
             Btrack(j,0) = as_scalar(Bnow.col(0));
             Btrack(j,1) = as_scalar(Bnow.col(1));
@@ -359,7 +371,7 @@ int main() {
             mat Vold = V.slice(j).row(i);
 
             double x = as_scalar(X.slice(j).row(i).col(0));
-            if ( (x-x0) > 250.0*Rg ) {
+            if ( (x-x0) > 500.0*Rg ) {
                 double P_return = randu();
                 double P_escape = boundary(U1,V.slice(j).row(i),r);
                 if (P_return < P_escape){ 
@@ -434,10 +446,10 @@ int main() {
                 mat Xold = Xspl.row(jj);
                 mat Vold = Vspl.row(jj);         
 
-                mat dB = sum_turby(Xold,T(jj),K,An,Bn);
+                mat dB = sum_turby(Xold,T(jj),K,An,Bn,U1,r);
                 auto [Unow,Bnow] = shock_field(Xold, x0, U1, B0+dB, r, a, b);
                 double x = as_scalar(Xold.col(0));
-                if ( (x-x0) > 250.0*Rg ) {
+                if ( (x-x0) > 500.0*Rg ) {
                     double P_return = randu();
                     double P_escape = boundary(U1,Vold,r);
                     if (P_return < P_escape){ 
@@ -481,7 +493,8 @@ int main() {
 
 // run cmd
 //g++ -std=c++17 prototype.cpp ip_snowplow.cpp -o prototype.exe -larmadillo 
-
+//mpicxx shock.cpp -o shock.exe -larmadillo
+// mpirun -np 8 shock.exe
 
 // old output format
 // good for debugging

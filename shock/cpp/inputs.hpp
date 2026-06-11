@@ -10,9 +10,10 @@ namespace inputs {
     // --- Physical Constants ---
     const double c  = 3.0E10;          // speed of light, cm/s (cgs)
     const double e  = 4.8E-10;         // elementary charge, cgs
-    const double Z  = 1.0;             // atomic number
-    const double A  = 1.0;             // mass number
+    const double Z  = 2.0;             // atomic number
+    const double A  = 4.0;             // mass number
     const double q  = 1.0 * e;         // ion charge 
+    //const double q  = Z * e;         // ion charge 
     const double m  = A * 1.67E-24;    // mass in grams
     const double PI = 3.14159265358979323846;
 
@@ -20,11 +21,11 @@ namespace inputs {
     const double n_SW = 5.0; // cm^-3 SW thermal density
     const double n_PUI = 0.3; // cm^-3 PUI density
     const double R0 = 62.0; // in AU
-    const double th  = 60.0 * (PI / 180.0); 
+    const double th  = 90.0 * (PI / 180.0); 
     const double del = 0.0 * (PI / 180.0);
     // --- Simulation Inputs ---
     const int sample_size = 1000;
-    const double U0  = 2000.0e5;
+    const double U0  = 400.0e5;
     const double B0  = 0.05e-5;
     const double Usw = 400.0e5;
     const double cycles = 10000.0;
@@ -42,7 +43,7 @@ namespace inputs {
     // Gyrofrequency
     //inline double get_B1() { return as_scalar(norm(init_B0(), 2)); }
     inline double get_B1() { return B0; }
-    inline double get_Om() { return (abs(q) * get_B1()) / (m * c); }
+    inline double get_Om() { return (std::abs(q) * get_B1()) / (m * c); }
     inline double get_Rg() { return as_scalar(norm(init_Usw(), 2)) / get_Om(); }
 }
 
